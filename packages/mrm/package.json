@@ -2,41 +2,6 @@
   "name": "mrm",
   "version": "4.0.0",
   "description": "Codemods for your project config files",
-  "author": {
-    "name": "Artem Sapegin",
-    "url": "http://sapegin.me"
-  },
-  "homepage": "https://github.com/sapegin/mrm",
-  "repository": "sapegin/mrm",
-  "license": "MIT",
-  "main": "src/index.js",
-  "bin": "bin/mrm.js",
-  "engines": {
-    "node": ">=10.13"
-  },
-  "files": [
-    "bin",
-    "src"
-  ],
-  "dependencies": {
-    "git-username": "^1.0.0",
-    "glob": "^7.1.6",
-    "inquirer": "^7.0.4",
-    "is-directory": "^0.3.1",
-    "kleur": "^3.0.3",
-    "libnpx": "^10.2.4",
-    "listify": "^1.0.0",
-    "lodash": "^4.17.15",
-    "longest": "^2.0.1",
-    "middleearth-names": "^1.1.0",
-    "minimist": "^1.2.0",
-    "mrm-core": "^7.0.0",
-    "semver-utils": "^1.1.4",
-    "update-notifier": "^4.1.0",
-    "user-home": "^2.0.0",
-    "user-meta": "^1.0.0",
-    "which": "^2.0.2"
-  },
   "keywords": [
     "boilerplate",
     "cli",
@@ -53,5 +18,50 @@
     "template",
     "tool",
     "yaml"
-  ]
+  ],
+  "homepage": "https://github.com/sapegin/mrm",
+  "repository": "sapegin/mrm",
+  "license": "MIT",
+  "author": {
+    "name": "Artem Sapegin",
+    "url": "http://sapegin.me"
+  },
+  "type": "module",
+  "main": "src/index.js",
+  "bin": "bin/mrm.js",
+  "files": [
+    "bin",
+    "src"
+  ],
+  "dependencies": {
+    "debug": "^4.3.4",
+    "degit": "^2.8.4",
+    "env-paths": "^3.0.0",
+    "glob": "^7.1.6",
+    "inquirer": "^7.0.4",
+    "kleur": "^3.0.3",
+    "libnpx": "^10.2.4",
+    "listify": "^1.0.0",
+    "lodash-es": "^4.17.21",
+    "longest": "^2.0.1",
+    "make-dir": "^3.1.0",
+    "middleearth-names": "^1.1.0",
+    "minimist": "^1.2.0",
+    "mrm-core": "^7.0.0",
+    "rimraf": "^3.0.2",
+    "semver-utils": "^1.1.4",
+    "update-notifier": "^4.1.0",
+    "which": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^28.1.7",
+    "@types/lodash-es": "^4.17.6",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-prettier": "^4.2.1",
+    "eslint-plugin-simple-import-sort": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=10.13"
+  }
 }
