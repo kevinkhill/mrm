@@ -1,76 +1,65 @@
 #!/usr/bin/env node
-//@ts-check
+/* eslint-disable no-console */
 
-import kleur from 'kleur';
-import listify from 'listify';
-import { padEnd, sortBy } from 'lodash-es';
-import longest from 'longest';
-import { random } from 'middleearth-names';
-import minimist from 'minimist';
-import { readFileSync } from 'node:fs';
-import { lstat } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import updateNotifier from 'update-notifier';
-
-import {
-	CONSTANTS,
-	ensureDefaultTasksAvailable,
-	getAllTasks,
-	getConfig,
-	getPackageName,
-	installDegitDependencies,
-	mrmDebug,
-	MrmInvalidTask,
-	MrmUndefinedOption,
-	MrmUnknownAlias,
-	MrmUnknownTask,
-	promiseFirst,
-	resolveUsingDegit,
-	resolveUsingNpx,
+const path = require('path');
+const minimist = require('minimist');
+const kleur = require('kleur');
+const longest = require('longest');
+const isDirectory = require('is-directory');
+const userHome = require('user-home');
+const listify = require('listify');
+const updateNotifier = require('update-notifier');
+const { padEnd, sortBy } = require('lodash');
+const { random } = require('middleearth-names');
+const {
 	run,
-} from '../src/index.mjs';
+	getConfig,
+	getAllTasks,
+	resolveUsingNpx,
+	getPackageName,
+	promiseFirst,
+} = require('../src/index');
+const {
+	MrmUnknownTask,
+	MrmInvalidTask,
+	MrmUnknownAlias,
+	MrmUndefinedOption,
+} = require('../src/errors');
 
-const { CONFIG_FILENAME, DEFAULT_DIRECTORIES, EXAMPLES, TASK_CACHE_DIR } =
-	CONSTANTS;
+const defaultDirectories = [
+	path.resolve(userHome, 'dotfiles/mrm'),
+	path.resolve(userHome, '.mrm'),
+];
 
-const cliDebug = mrmDebug.extend('cli');
+const EXAMPLES = [
+	['', '', 'List of available tasks'],
+	['<task>', '', 'Run a task or an alias'],
+	['<task>', '--dir ~/unicorn', 'Custom config and tasks folder'],
+	['<task>', '--preset unicorn', 'Load config and tasks from a preset'],
+	[
+		'<task>',
+		'--config:foo coffee --config:bar pizza',
+		'Override config options',
+	],
+];
 
-/* Return the functionality of `require` from commonjs */
-const require = createRequire(import.meta.url);
+// Update notifier
+const pkg = require('../package.json');
+updateNotifier({ pkg }).notify();
 
-/**
- * mrm, the cli tool
- *
- * Some new fun flags:
- * --useExperimentalDegitResolver
- *    This will use the new degit resolver for downloading and npm for installing deps
- *
- * --refreshLocalTaskCache
- *    This will wipe the local task cache, for degit to re-populate
- *
- */
-async function main() {
-	const debug = cliDebug;
-	const argv = minimist(process.argv.slice(2), {
-		alias: {
-			i: 'interactive',
-		},
-		boolean: ['dryRun'],
-	});
-
-	debug(argv);
-
-	// Collect positional args as tasks to run
-	const tasks = argv._;
-	const { dryRun, useExperimentalDegitResolver, refreshLocalTaskCache } = argv;
-
-	if (useExperimentalDegitResolver) {
-		console.log(kleur.bgYellow().red('Experimental degit resolver activated.'));
+process.on('unhandledRejection', err => {
+	if (err.constructor.name === 'MrmError') {
+		printError(err.message);
+		process.exit(1);
+	} else {
+		throw err;
 	}
+});
 
-	// How are we executing
+async function main() {
+	const argv = minimist(process.argv.slice(2), { alias: { i: 'interactive' } });
+	const tasks = argv._;
+
 	const binaryPath = process.env._;
 	const binaryName =
 		binaryPath && binaryPath.endsWith('/npx') ? 'npx mrm' : 'mrm';
@@ -78,114 +67,58 @@ async function main() {
 	// Preset
 	const preset = argv.preset || 'default';
 	const isDefaultPreset = preset === 'default';
-
-	// Task Dirs
-	const directories = [...DEFAULT_DIRECTORIES, TASK_CACHE_DIR];
-
-	// Custom config / tasks directory
-	if (argv.dir) {
-		const resolvedDir = path.resolve(argv.dir);
-		try {
-			const stat = await lstat(resolvedDir);
-			if (stat.isDirectory()) {
-				directories.push(resolvedDir);
-			}
-		} catch (_) {
-			printError(`Directory "${resolvedDir}" not found.`);
-			return 1;
-		}
-	}
-
-	debug('collecting configs from %O', directories);
-
-	const config = await getConfig(directories, CONFIG_FILENAME, argv);
-	const options = {
-		...config,
-		refreshLocalTaskCache,
-		useExperimentalDegitResolver,
-	};
-	debug(options);
-
-	// Install stuff with degit and npm
-	if (useExperimentalDegitResolver) {
-		// options.degit.dependencies['mrm-preset-default'] =
-		// 	'sapegin/mrm/packages/mrm-preset-default';
-
-		['ci', 'codecov', 'contributing'].forEach(defaultTaskPkg => {
-			const degitSpec = `sapegin/mrm/packages/mrm-task-${defaultTaskPkg}`;
-			options.degit.dependencies[defaultTaskPkg] = degitSpec;
-		});
-
-		// options.degit.dependencies['typescript'] =
-		// 	'sapegin/mrm/packages/mrm-task-typescript';
-
-		await installDegitDependencies(options);
-		// await ensureDefaultTasksAvailable(options);
-	}
-
+	const directories = await resolveDirectories(defaultDirectories);
+	const options = await getConfig(directories, 'config.json', argv);
 	if (tasks.length === 0 || tasks[0] === 'help') {
-		await commandHelp();
-		return;
-	}
+		commandHelp();
+	} else {
+		run(tasks, directories, options, argv).catch(err => {
+			if (err.constructor === MrmUnknownAlias) {
+				printError(err.message);
+			} else if (err.constructor === MrmUnknownTask) {
+				const { taskName } = err.extra;
+				if (isDefaultPreset) {
+					const modules = directories
+						.slice(0, -1)
+						.map(d => `${d}/${taskName}/index.js`)
+						.concat([
+							`“${taskName}” in the default mrm tasks`,
+							`mrm-task-${taskName} package in local node_modules`,
+							`${taskName} package in local node_modules`,
+							`mrm-task-${taskName} package on the npm registry`,
+							`${taskName} package on the npm registry`,
+						]);
+					printError(
+						`${err.message}
 
-	try {
-		if (dryRun) {
-			console.log('\n', kleur.yellow().underline('Tasks'), '\n');
-			console.log(tasks);
-			console.log('\n', kleur.yellow().underline('Directories'), '\n');
-			console.log(directories);
-			console.log('\n', kleur.yellow().underline('Options'), '\n');
-			console.log(options);
-		} else {
-			await run(tasks, directories, options, argv);
-		}
-	} catch (err) {
-		if (err.constructor === MrmUnknownAlias) {
-			printError(err.message);
-		} else if (err.constructor === MrmUnknownTask) {
-			const { taskName } = err.extra;
-			if (isDefaultPreset) {
-				const modules = directories
-					.slice(0, -1)
-					.map(d => `${d}/${taskName}/index.js`)
-					.concat([
-						`"${taskName}" in the default mrm tasks`,
-						`mrm-task-${taskName} package in local node_modules`,
-						`${taskName} package in local node_modules`,
-						`mrm-task-${taskName} package on the npm registry`,
-						`${taskName} package on the npm registry`,
-					]);
-				printError(
-					`${err.message}
-
-We've tried these locations:
+We’ve tried these locations:
 
 - ${modules.join('\n- ')}`
-				);
-			} else {
-				printError(`Task "${taskName}" not found in the "${preset}" preset.
+					);
+				} else {
+					printError(`Task “${taskName}” not found in the “${preset}” preset.
 
 Note that when a preset is specified no default search locations are used.`);
-			}
-		} else if (err.constructor === MrmInvalidTask) {
-			printError(`${err.message}
+				}
+			} else if (err.constructor === MrmInvalidTask) {
+				printError(`${err.message}
 
 Make sure your task module exports a function.`);
-		} else if (err.constructor === MrmUndefinedOption) {
-			const { unknown } = err.extra;
-			const values = unknown.map(name => [name, random()]);
-			const heading = `Required config options are missed: ${listify(
-				unknown
-			)}.`;
-			const cliHelp = `  ${binaryName} ${tasks.join(' ')} ${values
-				.map(([n, v]) => `--config:${n} "${v}"`)
-				.join(' ')}`;
-			if (isDefaultPreset) {
-				const userDirectories = directories.slice(0, -1);
-				printError(
-					`${heading}
+			} else if (err.constructor === MrmUndefinedOption) {
+				const { unknown } = err.extra;
+				const values = unknown.map(name => [name, random()]);
+				const heading = `Required config options are missed: ${listify(
+					unknown
+				)}.`;
+				const cliHelp = `  ${binaryName} ${tasks.join(' ')} ${values
+					.map(([n, v]) => `--config:${n} "${v}"`)
+					.join(' ')}`;
+				if (isDefaultPreset) {
+					const userDirectories = directories.slice(0, -1);
+					printError(
+						`${heading}
 
-1. Create a "${CONFIG_FILENAME}" file:
+1. Create a “config.json” file:
 
 {
 ${values.map(([n, v]) => `  "${n}": "${v}"`).join(',\n')}
@@ -199,42 +132,66 @@ In one of these folders:
 
 ${cliHelp}
 	`
-				);
-			} else {
-				printError(
-					`${heading}
+					);
+				} else {
+					printError(
+						`${heading}
 
 You can pass the option via command line:
 
 ${cliHelp}
 
 Note that when a preset is specified no default search locations are used.`
-				);
+					);
+				}
+			} else {
+				throw err;
 			}
-		} else {
-			throw err;
+		});
+	}
+
+	async function resolveDirectories(paths) {
+		// Custom config / tasks directory
+		if (argv.dir) {
+			const dir = path.resolve(argv.dir);
+			if (!isDirectory.sync(dir)) {
+				printError(`Directory “${dir}” not found.`);
+				process.exit(1);
+			}
+
+			paths.unshift(dir);
+		}
+
+		const presetPackageName = getPackageName('preset', preset);
+		try {
+			const presetPath = await promiseFirst([
+				() => require.resolve(presetPackageName),
+				() => require.resolve(preset),
+				() => resolveUsingNpx(presetPackageName),
+				() => resolveUsingNpx(preset),
+			]);
+			return [...paths, path.dirname(presetPath)];
+		} catch {
+			printError(`Preset “${preset}” not found.
+
+We’ve tried to load “${presetPackageName}” and “${preset}” npm packages.`);
+			return process.exit(1);
 		}
 	}
 
-	// 		const presetPackageName = getPackageName('preset', preset);
-	// 		try {
-	// 			const presetPath = await promiseFirst([
-	// 				() => require.resolve(presetPackageName),
-	// 				() => require.resolve(preset),
-	// 				() => remoteResolver(presetPackageName),
-	// 				() => remoteResolver(preset),
-	// 			]);
-	// 			return [...paths, path.dirname(presetPath)];
-	// 		} catch {
-	// 			printError(`Preset "${preset}" not found.
-
-	// We've tried to load "${presetPackageName}" and "${preset}" npm packages.`);
-	// 			return process.exit(1);
-	// 		}
-	// 	}
+	function commandHelp() {
+		console.log(
+			[
+				kleur.underline('Usage'),
+				getUsage(),
+				kleur.underline('Available tasks'),
+				getTasksList(options),
+			].join('\n\n')
+		);
+	}
 
 	function getUsage() {
-		const commands = EXAMPLES.map(x => x.join(''));
+		const commands = EXAMPLES.map(x => x[0] + x[1]);
 		const commandsWidth = longest(commands).length;
 		return EXAMPLES.map(([command, opts, description]) =>
 			[
@@ -248,8 +205,8 @@ Note that when a preset is specified no default search locations are used.`
 		).join('\n');
 	}
 
-	async function getTasksList() {
-		const allTasks = await getAllTasks(directories, options);
+	function getTasksList() {
+		const allTasks = getAllTasks(directories, options);
 		const names = sortBy(Object.keys(allTasks));
 		const nameColWidth = names.length > 0 ? longest(names).length : 0;
 
@@ -264,60 +221,12 @@ Note that when a preset is specified no default search locations are used.`
 			})
 			.join('\n');
 	}
-
-	async function commandHelp() {
-		console.log(
-			[
-				kleur.underline('Usage'),
-				getUsage(),
-				kleur.underline('Available tasks'),
-				await getTasksList(),
-			].join('\n\n')
-		);
-		console.log('\n');
-	}
 }
 
-/**
- * Check for newer versions of the tool
- */
-function runUpdater() {
-	const __dirname = path.dirname(fileURLToPath(import.meta.url));
-	const pkgPath = path.resolve(__dirname, '..', 'package.json');
-	const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
-	const notifier = updateNotifier({ pkg });
-
-	cliDebug('current pkg version: %s', pkg.version);
-	cliDebug('latest pkg version: %s', notifier.update?.latest);
-
-	return notifier.notify();
-}
-
-/**
- * Pretty Error messages
- */
 function printError(message) {
 	console.log();
 	console.error(kleur.bold().red(message));
 	console.log();
 }
 
-/**
- * Catch unhandled errors potentially thrown by tasks?
- */
-process.on(
-	'unhandledRejection',
-	/** @type err {Error} */ err => {
-		// if (String(err.constructor.name).startsWith('Mrm')) {
-		cliDebug('ERROR');
-		cliDebug(err);
-		printError(err.message);
-		process.exit(1);
-		// } else {
-		// 	throw err;
-		// }
-	}
-);
-
-runUpdater();
 main();

@@ -1,55 +1,38 @@
-// @ts-check
+import Debug from "debug";
+import inquirer from "inquirer";
+import kleur from "kleur";
+import { partition } from "lodash-es";
+import { createRequire } from "node:module";
 
-import Debug from 'debug';
-import fs from 'fs';
-import inquirer from 'inquirer';
-import kleur from 'kleur';
-import { partition } from 'lodash-es';
-import { createRequire } from 'node:module';
-import path from 'path';
-
-import { getAllAliases, getAllTasks } from './collector.mjs';
-import { installDegitDependencies, resolveUsingDegit } from './degit.mjs';
 import {
 	MrmInvalidTask,
 	MrmUndefinedOption,
 	MrmUnknownAlias,
 	MrmUnknownTask,
-} from './errors.mjs';
-import { ensureDefaultTasksAvailable } from './npm.mjs';
-import { promiseFirst, promiseSeries } from './promises.mjs';
-import { resolveUsingNpx } from './resolveUsingNpx.mjs';
-
-export * from './config.mjs';
-export * as CONSTANTS from './constants.mjs';
-export {
-	ensureDefaultTasksAvailable,
-	getAllTasks,
-	installDegitDependencies,
-	MrmInvalidTask,
-	MrmUndefinedOption,
-	MrmUnknownAlias,
-	MrmUnknownTask,
-	promiseFirst,
-	promiseSeries,
-	resolveUsingDegit,
-	resolveUsingNpx,
-};
+} from "./errors";
+import { getAllAliases } from "./lib/collector";
+import { promiseFirst, promiseSeries } from "./lib/promises";
+import { resolveUsingNpx } from "./lib/resolveUsingNpx";
+import { tryFile } from "./lib/tryFile";
+import { CliArgs, MrmOptions, MrmTask } from "./lib/types";
 
 /* Return the functionality of `require` from commonjs */
 const require = createRequire(import.meta.url);
 
-export const mrmDebug = Debug('mrm');
+export const mrmDebug = Debug("mrm");
 
 /**
  * Returns the correct `mrm-` prefixed package name
  *
- * @param {"task" | "preset"} type
+ * @param {} type
  * @param {string} packageName
  * @returns {string}
  */
-export function getPackageName(type, packageName) {
-	const [scopeOrTask, scopedTaskName] = packageName.split('/');
+export function getPackageName(
+	type: "task" | "preset",
+	packageName: string
+): string {
+	const [scopeOrTask, scopedTaskName] = packageName.split("/");
 	return scopedTaskName
 		? `${scopeOrTask}/mrm-${type}-${scopedTaskName}`
 		: `mrm-${type}-${scopeOrTask}`;
@@ -57,14 +40,13 @@ export function getPackageName(type, packageName) {
 
 /**
  * Run a task
- *
- * @param {string|string[]} name
- * @param {string[]} directories
- * @param {Object} options
- * @param {Object} argv
- * @returns {Promise<void>}
  */
-export function run(name, directories, options, argv) {
+export function run(
+	name: string | string[],
+	directories: string[],
+	options: MrmOptions,
+	argv: CliArgs
+): Promise<void> {
 	if (Array.isArray(name)) {
 		return promiseSeries(name, n => {
 			return run(n, directories, options, argv);
@@ -80,14 +62,13 @@ export function run(name, directories, options, argv) {
 
 /**
  * Run an alias.
- *
- * @param {string} aliasName
- * @param {string[]} directories
- * @param {Object} options
- * @param {Object} [argv]
- * @returns {Promise<void>}
  */
-export function runAlias(aliasName, directories, options, argv) {
+export async function runAlias(
+	aliasName: string,
+	directories: string[],
+	options: MrmOptions,
+	argv: CliArgs
+): Promise<void> {
 	const tasks = getAllAliases(options)[aliasName];
 
 	if (!tasks) {
@@ -116,21 +97,22 @@ export function runAlias(aliasName, directories, options, argv) {
  * @param {Object} [argv]
  * @returns {Promise}
  */
-async function runTask(taskName, directories, options, argv) {
-	const taskPackageName = getPackageName('task', taskName);
+export async function runTask(
+	taskName: string | string[],
+	directories: string[],
+	options: MrmOptions,
+	argv: CliArgs
+): Promise<void> {
+	const taskPackageName = getPackageName("task", taskName);
 
-	const remoteResolver = options.useExperimentalDegitResolver
-		? pkg => resolveUsingDegit(pkg, options)
-		: resolveUsingNpx;
-
-	let modulePath;
+	let modulePath: string | null;
 	try {
 		modulePath = await promiseFirst([
 			() => tryFile(directories, `${taskName}/index.js`),
 			() => require.resolve(taskPackageName),
-			() => remoteResolver(taskPackageName),
+			() => resolveUsingNpx(taskPackageName),
 			() => require.resolve(taskName),
-			() => remoteResolver(taskName),
+			() => resolveUsingNpx(taskName),
 		]);
 	} catch {
 		modulePath = null;
@@ -147,7 +129,7 @@ async function runTask(taskName, directories, options, argv) {
 		}
 
 		const module = require(modulePath);
-		if (typeof module !== 'function') {
+		if (typeof module !== "function") {
 			reject(
 				new MrmInvalidTask(`Cannot call task "${taskName}".`, { taskName })
 			);
@@ -167,11 +149,15 @@ async function runTask(taskName, directories, options, argv) {
  * Get task specific options, either by running Inquirer.js in interactive mode,
  * or using defaults.
  *
- * @param {Function & { parameters: Record<string,unknown>}} task
- * @param {boolean} interactive? Whether or not interactive mode is enabled.
- * @param {Record<string, any>} options? Default available options passed into the task.
+ * @param task executing function of the task
+ * @param interactive Whether or not interactive mode is enabled.
+ * @param options Default available options passed into the task.
  */
-async function getTaskOptions(task, interactive = false, options = {}) {
+async function getTaskOptions(
+	task: MrmTask,
+	interactive = false,
+	options: Record<string, any> = {}
+): Promise<Record<string, any>> {
 	// If no parameters set, resolve to default options (from config file or command line).
 	if (!task.parameters) {
 		return options;
@@ -181,26 +167,22 @@ async function getTaskOptions(task, interactive = false, options = {}) {
 
 	const allOptions = await Promise.all(
 		parameters.map(async ([name, param]) => ({
-			// @ts-ignore
 			...param,
 			name,
 			default:
 				// Merge available default options with parameter initial values
-				typeof options[name] !== 'undefined'
+				typeof options[name] !== "undefined"
 					? options[name]
-					: // @ts-ignore
-					typeof param.default === 'function'
-					? // @ts-ignore
-					  await param.default(options)
-					: // @ts-ignore
-					  param.default,
+					: typeof param.default === "function"
+					? await param.default(options)
+					: param.default,
 		}))
 	);
 
 	// Split interactive and static options
 	const [prompts, statics] = partition(
 		allOptions,
-		option => interactive && option.type !== 'config'
+		option => interactive && option.type !== "config"
 	);
 
 	// Validate static options
@@ -210,7 +192,7 @@ async function getTaskOptions(task, interactive = false, options = {}) {
 	if (invalid.length > 0) {
 		const names = invalid.map(({ name }) => name);
 		throw new MrmUndefinedOption(
-			`Missing required config options: ${names.join(', ')}.`,
+			`Missing required config options: ${names.join(", ")}.`,
 			{
 				unknown: names,
 			}
@@ -227,34 +209,4 @@ async function getTaskOptions(task, interactive = false, options = {}) {
 	}
 
 	return values;
-}
-
-/**
- * Try to load a file from a list of folders.
- *
- * @param {string[]} directories
- * @param {string} filename
- * @return {Promise<string>} Absolute path or undefined
- */
-// eslint-disable-next-line require-await
-export async function tryFile(directories, filename) {
-	const debug = mrmDebug.extend('tryFile');
-	debug('search: %s', kleur.bold().cyan(filename));
-
-	try {
-		return promiseFirst(
-			directories.map(dir => {
-				debug('entering: %s', kleur.yellow(dir));
-				const filepath = path.resolve(dir, filename);
-
-				return async function () {
-					await fs.promises.access(filepath);
-					debug('+++ %s', kleur.green(filepath));
-					return filepath;
-				};
-			})
-		);
-	} catch (err) {
-		throw new Error(`File "${filename}" not found.`);
-	}
 }

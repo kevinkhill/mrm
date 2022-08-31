@@ -1,0 +1,81 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 12,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "env": {
+    "es6": true,
+    "node": true
+  },
+  "plugins": [
+    "import",
+    "prettier",
+    "@typescript-eslint",
+    "simple-import-sort"
+  ],
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:import/errors",
+    "plugin:import/typescript",
+    "prettier" // KEEP THIS LAST
+  ],
+  "rules": {
+    "simple-import-sort/imports": [
+      "error",
+      {
+        // The default grouping, but with type imports last as a separate
+        // group, sorting that group like non-type imports are grouped.
+        "groups": [
+          [
+            "^\\u0000"
+          ],
+          [
+            "^@?\\w"
+          ],
+          [
+            "^"
+          ],
+          [
+            "^\\."
+          ],
+          [
+            "^@?\\w.*\\u0000$",
+            "^[^.].*\\u0000$",
+            "^\\..*\\u0000$"
+          ]
+        ]
+      }
+    ],
+    "simple-import-sort/exports": "error",
+    "import/first": "error",
+    "import/newline-after-import": "error",
+    "import/no-duplicates": "error",
+    "prettier/prettier": [
+      "error",
+      {
+        "parser": "typescript",
+        "semi": true,
+        "useTabs": true,
+        "tabWidth": 2,
+        "singleQuote": false,
+        "arrowParens": "avoid"
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "env": {
+        "jest": true
+      },
+      "files": [
+        "**/tests?/**",
+        "**/__tests?__/**"
+      ]
+    }
+  ]
+}

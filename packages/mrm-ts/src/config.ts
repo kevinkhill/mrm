@@ -1,18 +1,13 @@
-// @ts-check
+import { forEach } from "lodash-es";
+import { createRequire } from "node:module";
 
-import { forEach } from 'lodash-es';
-import { createRequire } from 'node:module';
+import { tryFile } from "./lib/tryFile";
 
-import { tryFile } from './index.mjs';
-
-/**
- *
- * @param {string[]} directories
- * @param {string} filename
- * @param {Object} argv
- * @return {Promise<Object>}
- */
-export async function getConfig(directories, filename, argv) {
+export async function getConfig(
+	directories: string[],
+	filename: string,
+	argv: Record<string, unknown>
+): Promise<Record<string, unknown>> {
 	const configFromFile = await getConfigFromFile(directories, filename);
 	return { ...configFromFile, ...getConfigFromCommandLine(argv) };
 }
@@ -24,7 +19,10 @@ export async function getConfig(directories, filename, argv) {
  * @param {string} filename
  * @return {Promise<Object>}
  */
-export async function getConfigFromFile(directories, filename) {
+export async function getConfigFromFile(
+	directories,
+	filename
+): Promise<Record<string, unknown>> {
 	const require = createRequire(import.meta.url);
 	try {
 		const filepath = await tryFile(directories, filename);
@@ -44,8 +42,8 @@ export async function getConfigFromFile(directories, filename) {
 export function getConfigFromCommandLine(argv) {
 	const options = {};
 	forEach(argv, (value, key) => {
-		if (key.startsWith('config:')) {
-			options[key.replace(/^config:/, '')] = value;
+		if (key.startsWith("config:")) {
+			options[key.replace(/^config:/, "")] = value;
 		}
 	});
 	return options;

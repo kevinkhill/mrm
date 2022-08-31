@@ -1,19 +1,17 @@
-// @ts-check
+import degit from "degit";
+import { execa } from "execa";
+import kleur from "kleur";
+import makeDir from "make-dir";
+import { constants } from "node:fs";
+import { access } from "node:fs/promises";
+import path from "node:path";
+import { promisify } from "node:util";
+import rimraf from "rimraf";
+import which from "which";
 
-import degit from 'degit';
-import execa from 'execa';
-import kleur from 'kleur';
-import makeDir from 'make-dir';
-import { constants } from 'node:fs';
-import { access } from 'node:fs/promises';
-import path from 'node:path';
-import { promisify } from 'node:util';
-import rimraf from 'rimraf';
-import which from 'which';
-
-import { CONFIG_FILENAME, TASK_CACHE_DIR } from './constants.mjs';
-import { mrmDebug } from './index.mjs';
-import { parseSpec } from './parseSpec.js';
+import { CONFIG_FILENAME, TASK_CACHE_DIR } from "../constants";
+import { mrmDebug } from "../mrm";
+import { parseSpec } from "./parseSpec";
 
 /**
  * @typedef DegitConfig
@@ -46,15 +44,15 @@ export function getDegitPathMappings(dependencies) {
  * @return string[]
  */
 export async function installDegitDependencies(options) {
-	const debug = mrmDebug.extend('degitInstaller');
+	const debug = mrmDebug.extend("degitInstaller");
 
 	// Ensure the cache dir is available
 	makeDir(TASK_CACHE_DIR);
-	debug('local task cache: %s', kleur.yellow(TASK_CACHE_DIR));
+	debug("local task cache: %s", kleur.yellow(TASK_CACHE_DIR));
 
 	if (options.refreshLocalTaskCache) {
 		const taskGlob = `${TASK_CACHE_DIR}/*`;
-		debug.extend('rimraf')('cleaning...');
+		debug.extend("rimraf")("cleaning...");
 		await promisify(rimraf)(taskGlob);
 	}
 
@@ -67,12 +65,12 @@ export async function installDegitDependencies(options) {
 	}
 
 	const { dependencies } = degitConfig;
-	debug('dependencies from config: %O', dependencies);
+	debug("dependencies from config: %O", dependencies);
 
 	const pkgInstaller = async degitSpec => {
-		debug('resolving: %s', kleur.yellow(degitSpec));
+		debug("resolving: %s", kleur.yellow(degitSpec));
 		const resolvedPath = await resolveUsingDegit(degitSpec, options);
-		debug('resolved: %s', kleur.yellow(resolvedPath));
+		debug("resolved: %s", kleur.yellow(resolvedPath));
 		return resolvedPath;
 	};
 
@@ -89,7 +87,7 @@ export async function installDegitDependencies(options) {
  * @return {Promise<string>}
  */
 export async function resolveUsingDegit(packageName, options) {
-	const debug = mrmDebug.extend('resolveUsingDegit');
+	const debug = mrmDebug.extend("resolveUsingDegit");
 
 	// Grab the props we need from the options
 	const { options: degitOptions, dependencies } = options.degit;
@@ -117,21 +115,21 @@ export async function resolveUsingDegit(packageName, options) {
 		force: degitOptions.force ?? false,
 		verbose: debug.enabled,
 	});
-	emitter.on('warn', e => debug(e.message));
-	emitter.on('info', e => console.log(e.message));
+	emitter.on("warn", e => debug(e.message));
+	emitter.on("info", e => console.log(e.message));
 
 	await emitter.clone(destPath);
 
-	debug('entering: %s', kleur.yellow(destPath));
+	debug("entering: %s", kleur.yellow(destPath));
 
 	// try {
 	// 	const lockFile = 'package-lock.json';
 	// 	await access(path.join(destPath, lockFile), constants.R_OK);
 	// 	debug('%s found; skipping dependency install', lockFile);
 	// } catch (_) {
-	debug('installing dependencies');
-	const npm = await which('npm');
-	const { stdout } = await execa(npm, ['install'], { cwd: destPath });
+	debug("installing dependencies");
+	const npm = await which("npm");
+	const { stdout } = await execa(npm, ["install"], { cwd: destPath });
 	debug(stdout);
 	// }
 

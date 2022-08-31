@@ -1,26 +1,29 @@
-// @ts-check
+import { execa } from "execa";
+import kleur from "kleur";
+import { lstat } from "node:fs/promises";
+import path from "node:path";
+import which from "which";
 
-import execa from 'execa';
-import kleur from 'kleur';
-import { lstat } from 'node:fs/promises';
-import path from 'node:path';
-import which from 'which';
-
-import { TASK_CACHE_DIR } from './constants.mjs';
-import { mrmDebug, resolveUsingDegit } from './index.mjs';
+import { TASK_CACHE_DIR } from "../constants";
+import { mrmDebug } from "../mrm";
+import { resolveUsingDegit } from "./degit";
+import { MrmOptions } from "./types";
 
 /**
  * Run an `npm` command in a directory
  *
  * @return Promise<execa.ExecaReturnValue<string>>
  */
-export async function npmCommand(command, cwd) {
-	const debug = mrmDebug.extend('npmCommand');
+export async function npmCommand(
+	command,
+	cwd
+): Promise<execa.ExecaReturnValue<string>> {
+	const debug = mrmDebug.extend("npmCommand");
 
-	const npm = await which('npm');
+	const npm = await which("npm");
 
-	debug('entering: %s', cwd);
-	debug('command: %s', command);
+	debug("entering: %s", cwd);
+	debug("command: %s", command);
 
 	const { stdout } = await execa(npm, command, { cwd });
 
@@ -30,8 +33,8 @@ export async function npmCommand(command, cwd) {
 /**
  * Install `mrm-preset-default` into the local cache with `npm`
  */
-export async function ensureDefaultTasksAvailable(options) {
-	const debug = mrmDebug.extend('ensureDefaultTasks');
+export async function ensureDefaultTasksAvailable(options: MrmOptions) {
+	const debug = mrmDebug.extend("ensureDefaultTasks");
 
 	// const initOutput = await npmCommand(['init', '-y'], TASK_CACHE_DIR);
 	// debug(initOutput);
@@ -41,7 +44,7 @@ export async function ensureDefaultTasksAvailable(options) {
 	// 	TASK_CACHE_DIR
 	// );
 	// debug(installOutput);
-	return await resolveUsingDegit('sapegin/mrm', options);
+	return await resolveUsingDegit("sapegin/mrm", options);
 	// return await installWithNpm('mrm-preset-default', TASK_CACHE_DIR);
 }
 
@@ -53,7 +56,7 @@ export async function ensureDefaultTasksAvailable(options) {
  * @return string
  */
 export async function installWithNpm(pkgSpec, cwd) {
-	const debug = mrmDebug.extend('npmInstaller');
+	const debug = mrmDebug.extend("npmInstaller");
 	const resolvedDir = path.resolve(cwd);
 
 	const stat = await lstat(resolvedDir);
@@ -61,11 +64,11 @@ export async function installWithNpm(pkgSpec, cwd) {
 		throw new Error(`"${cwd}" did not resolve to a directory.`);
 	}
 
-	debug('entering: %s', kleur.yellow(resolvedDir));
+	debug("entering: %s", kleur.yellow(resolvedDir));
 
 	try {
-		const npm = await which('npm');
-		const { stdout } = await execa(npm, ['install', pkgSpec], { cwd });
+		const npm = await which("npm");
+		const { stdout } = await execa(npm, ["install", pkgSpec], { cwd });
 		debug(stdout);
 		return resolvedDir;
 	} catch (_) {

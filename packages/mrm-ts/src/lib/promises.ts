@@ -1,15 +1,7 @@
-// @ts-check
-
 /**
  * Runs an array of promises in series
- *
- * @method promiseSeries
- *
- * @param  {Array} items
- * @param  {Function} iterator
- * @return {Promise}
  */
-export function promiseSeries(items, iterator) {
+export function promiseSeries<T>(items: T[], iterator: (item: T) => unknown) {
 	return items.reduce((iterable, name) => {
 		return iterable.then(() => iterator(name));
 	}, Promise.resolve());
@@ -23,11 +15,14 @@ export function promiseSeries(items, iterator) {
  * @param  {Array} thunks
  * @return {Promise}
  */
-export async function promiseFirst(thunks, errors = []) {
+export async function promiseFirst<T extends () => unknown>(
+	thunks: T[],
+	errors: Error[] = []
+) {
 	if (thunks.length === 0) {
 		throw new Error(`None of the ${errors.length} thunks resolved.
 
-${errors.join('\n')}`);
+${errors.join("\n")}`);
 	} else {
 		const [thunk, ...rest] = thunks;
 		try {
