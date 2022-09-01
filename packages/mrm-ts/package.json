@@ -26,11 +26,17 @@
     "url": "https://github.com/kevinkhill"
   },
   "scripts": {
-    "dev": "tsx ./src/cli.ts"
+    "cli": "tsx ./src/cli.ts",
+    "debug": "DEBUG=mrm* tsx ./src/cli.ts",
+    "build": "tsup --dts",
+    "view-config": "tsx ./src/cli.ts --view-config"
   },
   "type": "module",
-  "main": "src/index.js",
-  "bin": "bin/mrm.js",
+  "main": "dist/index.js",
+  "bin": {
+    "mrm": "dist/cli.js"
+  },
+  "types": "dist/index.d.ts",
   "files": [
     "bin",
     "src"
@@ -44,9 +50,7 @@
     "inquirer": "^7.0.4",
     "kleur": "^3.0.3",
     "libnpx": "^10.2.4",
-    "listify": "^1.0.0",
     "lodash-es": "^4.17.21",
-    "longest": "^2.0.1",
     "make-dir": "^3.1.0",
     "middleearth-names": "^1.1.0",
     "minimist": "^1.2.0",
@@ -63,6 +67,8 @@
     "@types/jest": "^28.1.7",
     "@types/lodash-es": "^4.17.6",
     "@types/node": "^18.7.14",
+    "@types/update-notifier": "^6.0.1",
+    "@types/which": "^2.0.1",
     "@typescript-eslint/eslint-plugin": "^5.36.0",
     "@typescript-eslint/parser": "^5.36.0",
     "eslint": "^8.23.0",

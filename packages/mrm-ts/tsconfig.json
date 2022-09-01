@@ -3,8 +3,8 @@
     "strict": true,
     "module": "ESNext",
     "target": "ESNext",
-    "rootDir": "./src",
-    "outDir": "./dist",
+    "rootDir": ".",
+    "outDir": "dist",
     "moduleResolution": "node",
     "lib": [
       "DOM",
@@ -20,12 +20,10 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true
   },
-  "files": [
-    "tsup.config.ts",
-    "src/consol.ts"
-  ],
   "include": [
-    "**/*.ts"
+    "package.json",
+    "tsup.config.ts",
+    "src/**/*.ts"
   ],
   "exclude": [
     "node_modules"
