@@ -10,11 +10,12 @@ import {
 	MrmUnknownAlias,
 	MrmUnknownTask,
 } from "./errors";
-import { getAllAliases } from "./lib/collector";
+import { getAllAliases, isValidAlias } from "./lib/collector";
 import { promiseFirst, promiseSeries } from "./lib/promises";
 import { resolveUsingNpx } from "./lib/resolveUsingNpx";
-import { tryFile } from "./lib/tryFile";
-import { CliArgs, MrmOptions, MrmTask } from "./lib/types";
+import { getPackageName, tryFile } from "./lib/utils";
+
+import type { CliArgs, MrmOptions, MrmTask } from "./types/mrm";
 
 /* Return the functionality of `require` from commonjs */
 const require = createRequire(import.meta.url);
@@ -22,42 +23,27 @@ const require = createRequire(import.meta.url);
 export const mrmDebug = Debug("mrm");
 
 /**
- * Returns the correct `mrm-` prefixed package name
- *
- * @param {} type
- * @param {string} packageName
- * @returns {string}
- */
-export function getPackageName(
-	type: "task" | "preset",
-	packageName: string
-): string {
-	const [scopeOrTask, scopedTaskName] = packageName.split("/");
-	return scopedTaskName
-		? `${scopeOrTask}/mrm-${type}-${scopedTaskName}`
-		: `mrm-${type}-${scopeOrTask}`;
-}
-
-/**
  * Run a task
  */
 export function run(
-	name: string | string[],
+	taskList: string | string[],
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<void> {
-	if (Array.isArray(name)) {
-		return promiseSeries(name, n => {
-			return run(n, directories, options, argv);
+): Promise<any> {
+	if (Array.isArray(taskList)) {
+		return promiseSeries(taskList, task => {
+			return run(task, directories, options, argv);
 		});
-	}
+	} else {
+		const task = taskList;
 
-	if (getAllAliases(options)[name]) {
-		return runAlias(name, directories, options, argv);
-	}
+		if (isValidAlias(task, options)) {
+			return runAlias(task, directories, options, argv);
+		}
 
-	return runTask(name, directories, options, argv);
+		return runTask(task, directories, options, argv);
+	}
 }
 
 /**
@@ -68,7 +54,7 @@ export async function runAlias(
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<void> {
+): Promise<any> {
 	const tasks = getAllAliases(options)[aliasName];
 
 	if (!tasks) {
@@ -78,13 +64,9 @@ export async function runAlias(
 	console.log(kleur.yellow(`Running alias ${aliasName}...`));
 
 	return promiseSeries(tasks, name => {
-		const isAlias = getAllAliases(options)[name];
+		const runner = isValidAlias(name, options) ? runAlias : runTask;
 
-		if (isAlias) {
-			return runAlias(name, directories, options, argv);
-		} else {
-			return runTask(name, directories, options, argv);
-		}
+		return runner(name, directories, options, argv);
 	});
 }
 
@@ -98,11 +80,11 @@ export async function runAlias(
  * @returns {Promise}
  */
 export async function runTask(
-	taskName: string | string[],
+	taskName: string,
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<void> {
+): Promise<string> {
 	const taskPackageName = getPackageName("task", taskName);
 
 	let modulePath: string | null;
@@ -156,8 +138,8 @@ export async function runTask(
 async function getTaskOptions(
 	task: MrmTask,
 	interactive = false,
-	options: Record<string, any> = {}
-): Promise<Record<string, any>> {
+	options: Partial<MrmOptions> = {}
+): Promise<Partial<MrmOptions>> {
 	// If no parameters set, resolve to default options (from config file or command line).
 	if (!task.parameters) {
 		return options;
@@ -189,6 +171,7 @@ async function getTaskOptions(
 	const invalid = statics.filter(param =>
 		param.validate ? param.validate(param.default) !== true : false
 	);
+
 	if (invalid.length > 0) {
 		const names = invalid.map(({ name }) => name);
 		throw new MrmUndefinedOption(
@@ -203,7 +186,8 @@ async function getTaskOptions(
 	const answers = prompts.length > 0 ? await inquirer.prompt(prompts) : {};
 
 	// Merge answers with static defaults
-	const values = { ...answers };
+	const values: Partial<MrmOptions> = { ...answers };
+
 	for (const param of statics) {
 		values[param.name] = param.default;
 	}

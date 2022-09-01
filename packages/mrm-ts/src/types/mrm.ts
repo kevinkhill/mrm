@@ -1,11 +1,14 @@
 import type { ParsedArgs } from "minimist";
 
+export type TaskRecords = Record<string, string[]>;
+
 /**
  * The main options interface for mrm
  *
  * @todo collect all the different possible options?
  */
 export interface MrmOptions {
+	[k: string]: unknown;
 	name: string;
 	email: string;
 	github: string;

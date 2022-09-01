@@ -3,7 +3,7 @@ interface ExtraRecordTaskName {
 }
 
 interface ExtraRecordUnknown {
-	unknown: string;
+	unknown: string[];
 }
 
 export class MrmBaseError extends Error {

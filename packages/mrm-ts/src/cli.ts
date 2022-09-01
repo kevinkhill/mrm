@@ -1,74 +1,49 @@
 #!/usr/bin/env node
 
 import kleur from "kleur";
-import listify from "listify";
-import { padEnd, sortBy } from "lodash-es";
-import longest from "longest";
+import { map, padEnd, sortBy } from "lodash-es";
 import { random } from "middleearth-names";
 import minimist from "minimist";
-import { readFileSync } from "node:fs";
-import { lstat } from "node:fs/promises";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import ora from "ora";
-import updateNotifier from "update-notifier";
 
-import { getConfig } from "./config";
 import { CONFIG_FILENAME, DEFAULT_DIRECTORIES, EXAMPLES } from "./constants";
 import {
 	isInvalidTaskError,
 	isUndefinedOptionError,
 	isUnknownAliasError,
 	isUnknownTaskError,
-	MrmError,
-	MrmInvalidTask,
-	MrmUndefinedOption,
-	MrmUnknownAlias,
-	MrmUnknownTask,
 } from "./errors";
+import { mrmDebug, run } from "./index";
 import { getAllTasks } from "./lib/collector";
+import { getConfig } from "./lib/config";
 import { printError } from "./lib/console";
-import { resolveDirectories, resolveUsingNpx } from "./lib/resolveUsingNpx";
-import { getPackageName, mrmDebug, run } from "./mrm";
+import { resolveDirectories } from "./lib/resolveUsingNpx";
+import { runUpdater } from "./lib/runUpdater";
+import { toNaturalList } from "./lib/toNaturalList";
+import { longest } from "./lib/utils";
 
-import type { CliArgs } from "./lib/types";
-import { promiseFirst } from "./lib/promises";
+import type { CliArgs, MrmOptions, TaskRecords } from "./types/mrm";
 
-const cliDebug = mrmDebug.extend("cli");
-
-/* Return the functionality of `require` from commonjs */
-const require = createRequire(import.meta.url);
+export const cliDebug = mrmDebug.extend("cli");
 
 /**
  * mrm, the cli tool
- *
- * Some new fun flags:
- * --useExperimentalDegitResolver
- *    This will use the new degit resolver for downloading and npm for installing deps
- *
- * --refreshLocalTaskCache
- *    This will wipe the local task cache, for degit to re-populate
- *
  */
 async function main() {
+	const spinner = ora("Loading mrm");
 	const debug = cliDebug;
-
 	const argv: CliArgs = minimist(process.argv.slice(2), {
 		alias: {
 			i: "interactive",
 		},
-		boolean: ["dryRun"],
+		boolean: ["view-config"],
 	});
 
-	debug(argv);
+	debug("argv = %O", argv);
 
-	const spinner = ora("Loading unicorns").start();
-
-	setTimeout(() => {
-		spinner.color = "yellow";
-		spinner.text = "Loading rainbows";
-	}, 1000);
+	if (!mrmDebug.enabled) {
+		spinner.start();
+	}
 
 	// Collect positional args as tasks to run
 	const tasks = argv._;
@@ -82,37 +57,40 @@ async function main() {
 	const preset = argv.preset || "default";
 	const isDefaultPreset = preset === "default";
 
-	// Task Dirs
-	const directories = [...DEFAULT_DIRECTORIES];
+	spinner.color = "yellow";
+	spinner.text = `resolving directories`;
+	const directories = await resolveDirectories(
+		DEFAULT_DIRECTORIES,
+		preset,
+		argv
+	);
 
-	await resolveDirectories(DEFAULT_DIRECTORIES, argv);
+	spinner.color = "blue";
+	spinner.text = `resolving configs`;
+	const options = await getConfig(directories, CONFIG_FILENAME, argv);
 
-	const config = await getConfig(directories, CONFIG_FILENAME, argv);
-	const options = {
-		...config,
-		// refreshLocalTaskCache,
-		// useExperimentalDegitResolver,
-	};
-	debug(options);
+	debug("Resolved Directories: %O", directories);
+	debug("Parsed Options: %O", options);
 
-	// debug("collecting configs from %O", directories);
+	if (argv["view-config"]) {
+		console.log("\n", kleur.yellow().underline("Tasks"), "\n");
+		console.log(tasks);
+		console.log("\n", kleur.yellow().underline("Directories"), "\n");
+		console.log(directories);
+		console.log("\n", kleur.yellow().underline("Options"), "\n");
+		console.log(options);
+		process.exit(1);
+	}
 
 	if (tasks.length === 0 || tasks[0] === "help") {
-		await commandHelp();
+		spinner.clear();
+		await commandHelp(binaryName, directories, options);
 		return;
 	}
 
 	try {
-		// if (dryRun) {
-		// 	console.log("\n", kleur.yellow().underline("Tasks"), "\n");
-		// 	console.log(tasks);
-		// 	console.log("\n", kleur.yellow().underline("Directories"), "\n");
-		// 	console.log(directories);
-		// 	console.log("\n", kleur.yellow().underline("Options"), "\n");
-		// 	console.log(options);
-		// } else {
-			await run(tasks, directories, options, argv);
-		// }
+		spinner.succeed("Done.");
+		await run(tasks, directories, options, argv);
 	} catch (err: unknown) {
 		if (isUnknownAliasError(err)) {
 			printError(err.message);
@@ -148,9 +126,8 @@ Make sure your task module exports a function.`);
 		} else if (isUndefinedOptionError(err)) {
 			const { unknown } = err.extra;
 			const values = unknown.map(name => [name, random()]);
-			const heading = `Required config options are missed: ${listify(
-				unknown
-			)}.`;
+			const configList = toNaturalList(unknown);
+			const heading = `Required config options are missed: ${configList}.`;
 			const cliHelp = `  ${binaryName} ${tasks.join(" ")} ${values
 				.map(([n, v]) => `--config:${n} "${v}"`)
 				.join(" ")}`;
@@ -189,82 +166,59 @@ Note that when a preset is specified no default search locations are used.`
 			throw err;
 		}
 	}
-
-			const presetPackageName = getPackageName('preset', preset);
-			try {
-				const presetPath = await promiseFirst([
-					() => require.resolve(presetPackageName),
-					() => require.resolve(preset),
-					() => resolveUsingNpx(presetPackageName),
-					() => resolveUsingNpx(preset),
-				]);
-				return [...paths, path.dirname(presetPath)];
-			} catch {
-				printError(`Preset "${preset}" not found.
-
-	We've tried to load "${presetPackageName}" and "${preset}" npm packages.`);
-				return process.exit(1);
-			}
-		}
-
-	function getUsage() {
-		const commands = EXAMPLES.map(x => x.join(""));
-		const commandsWidth = longest(commands).length;
-		return EXAMPLES.map(([command, opts, description]) =>
-			[
-				"   ",
-				kleur.bold(binaryName),
-				kleur.cyan(command),
-				kleur.yellow(opts),
-				padEnd("", commandsWidth - (command + opts).length),
-				description && `# ${description}`,
-			].join(" ")
-		).join("\n");
-	}
-
-	async function getTasksList() {
-		const allTasks = await getAllTasks(directories, options);
-		const names = sortBy(Object.keys(allTasks));
-		const nameColWidth = names.length > 0 ? longest(names).length : 0;
-
-		return names
-			.map(name => {
-				const description = Array.isArray(allTasks[name])
-					? `Runs ${listify(allTasks[name])}`
-					: allTasks[name];
-				return (
-					"    " + kleur.cyan(padEnd(name, nameColWidth)) + "  " + description
-				);
-			})
-			.join("\n");
-	}
-
-	async function commandHelp() {
-		console.log(
-			[
-				kleur.underline("Usage"),
-				getUsage(),
-				kleur.underline("Available tasks"),
-				await getTasksList(),
-			].join("\n\n")
-		);
-		console.log("\n");
-	}
+}
+/**
+ * Build and output for the command help for `mrm`
+ */
+async function commandHelp(
+	binaryName: string,
+	directories: string[],
+	options: MrmOptions
+) {
+	const allTasks = await getAllTasks(directories, options);
+	console.log(
+		[
+			kleur.underline("Usage"),
+			getUsage(binaryName, EXAMPLES),
+			kleur.underline("Available tasks"),
+			await getTasksList(allTasks),
+		].join("\n\n")
+	);
+	console.log("\n");
 }
 
 /**
- * Check for newer versions of the tool
+ * Get a pretty printed explanation of how to use `mrm`
  */
-function runUpdater() {
-	const __dirname = path.dirname(fileURLToPath(import.meta.url));
-	const pkgPath = path.resolve(__dirname, "..", "package.json");
-	const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
-	const notifier = updateNotifier({ pkg });
+function getUsage(binaryName: string, examples: string[][]): string {
+	const commands = map(examples, x => x.join(""));
+	const commandsWidth = longest(commands).length;
 
-	cliDebug("current pkg version: %s", pkg.version);
-	cliDebug("latest pkg version: %s", notifier.update?.latest);
+	return map(examples, ([command, opts, description]) =>
+		[
+			"   ",
+			kleur.bold(binaryName),
+			kleur.cyan(command),
+			kleur.yellow(opts),
+			padEnd("", commandsWidth - (command + opts).length),
+			description && `# ${description}`,
+		].join(" ")
+	).join("\n");
+}
 
-	return notifier.notify();
+/**
+ * Build a list of all the tasks and how they run
+ */
+async function getTasksList(allTasks: TaskRecords) {
+	const names = sortBy(Object.keys(allTasks));
+	const nameColWidth = names.length > 0 ? longest(names).length : 0;
+
+	return map(names, name => {
+		const description = Array.isArray(allTasks[name])
+			? `Runs ${toNaturalList(allTasks[name])}`
+			: allTasks[name];
+		return "    " + kleur.cyan(padEnd(name, nameColWidth)) + "  " + description;
+	}).join("\n");
 }
 
 /**

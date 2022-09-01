@@ -4,10 +4,10 @@ import { lstat } from "node:fs/promises";
 import path from "node:path";
 import which from "which";
 
+import { mrmDebug } from "..";
 import { TASK_CACHE_DIR } from "../constants";
-import { mrmDebug } from "../mrm";
+import { MrmOptions } from "../types/mrm";
 import { resolveUsingDegit } from "./degit";
-import { MrmOptions } from "./types";
 
 /**
  * Run an `npm` command in a directory

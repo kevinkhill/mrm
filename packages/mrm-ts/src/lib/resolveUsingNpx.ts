@@ -1,14 +1,17 @@
 import npx from "libnpx";
+import { lstat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import which from "which";
 
-import { getPackageName, mrmDebug } from "../mrm";
+import { mrmDebug } from "../index";
+import { CliArgs } from "../types/mrm";
 import { printError } from "./console";
 import { promiseFirst } from "./promises";
-import { CliArgs } from "./types";
+import { getPackageName } from "./utils";
 
-const { resolve } = createRequire(import.meta.url);
+/* Return the functionality of `require` from commonjs */
+const require = createRequire(import.meta.url);
 
 /**
  * Resolve a module on-the-fly using npx under the hood
@@ -16,7 +19,7 @@ const { resolve } = createRequire(import.meta.url);
  * @param  {string} packageName
  * @return {Promise<string>}
  */
-export async function resolveUsingNpx(packageName) {
+export async function resolveUsingNpx(packageName: string) {
 	const debug = mrmDebug.extend("npxResolver");
 	const npm = await which("npm");
 
@@ -27,7 +30,7 @@ export async function resolveUsingNpx(packageName) {
 	});
 
 	debug(`npx temp dir`, prefix);
-	const resolved = resolve(packageName, {
+	const resolved = require.resolve(packageName, {
 		paths: [
 			path.join(prefix, "lib", "node_modules"),
 			path.join(prefix, "lib64", "node_modules"),
@@ -42,36 +45,23 @@ export async function resolveUsingNpx(packageName) {
 	return resolved;
 }
 
-// Custom config / tasks directory
-if (argv.dir) {
-	const resolvedDir = path.resolve(argv.dir);
-	try {
-		const stat = await lstat(resolvedDir);
-		if (stat.isDirectory()) {
-			directories.push(resolvedDir);
-		}
-	} catch (_) {
-		printError(`Directory "${resolvedDir}" not found.`);
-		return 1;
-	}
-}
-/**
- * Resolve a given set of directories
- */
-export async function resolveDirectories(paths: string[], argv: CliArgs) {
+export async function resolveDirectories(
+	paths: string[],
+	preset: string,
+	argv: CliArgs
+): Promise<string[]> {
 	// Custom config / tasks directory
 	if (argv.dir) {
 		const resolvedDir = path.resolve(argv.dir);
 		const stat = await lstat(resolvedDir);
 		if (stat.isDirectory()) {
-			printError(`Directory "${dir}" not found.`);
+			printError(`Directory "${resolvedDir}" not found.`);
 			process.exit(1);
 		}
 
-		paths.unshift(dir);
+		paths.unshift(resolvedDir);
 	}
-
-	const presetPackageName = getPackageName("preset", argv.preset);
+	const presetPackageName = getPackageName("preset", preset);
 	try {
 		const presetPath = await promiseFirst([
 			() => require.resolve(presetPackageName),
@@ -82,7 +72,8 @@ export async function resolveDirectories(paths: string[], argv: CliArgs) {
 		return [...paths, path.dirname(presetPath)];
 	} catch {
 		printError(`Preset "${preset}" not found.
-We've tried to load "${presetPackageName}" and "${preset}" npm packages.`);
+
+	We've tried to load "${presetPackageName}" and "${preset}" npm packages.`);
 		return process.exit(1);
 	}
 }

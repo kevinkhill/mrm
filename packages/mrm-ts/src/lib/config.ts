@@ -1,15 +1,21 @@
 import { forEach } from "lodash-es";
 import { createRequire } from "node:module";
 
-import { tryFile } from "./lib/tryFile";
+import { tryFile } from "./utils";
+
+import type { CliArgs, MrmOptions } from "../types/mrm";
 
 export async function getConfig(
 	directories: string[],
 	filename: string,
-	argv: Record<string, unknown>
-): Promise<Record<string, unknown>> {
+	argv: CliArgs
+): Promise<MrmOptions> {
 	const configFromFile = await getConfigFromFile(directories, filename);
-	return { ...configFromFile, ...getConfigFromCommandLine(argv) };
+
+	return {
+		...configFromFile,
+		...getConfigFromCommandLine(argv),
+	} as MrmOptions;
 }
 
 /**
@@ -20,10 +26,11 @@ export async function getConfig(
  * @return {Promise<Object>}
  */
 export async function getConfigFromFile(
-	directories,
-	filename
-): Promise<Record<string, unknown>> {
+	directories: string[],
+	filename: string
+): Promise<Partial<MrmOptions>> {
 	const require = createRequire(import.meta.url);
+
 	try {
 		const filepath = await tryFile(directories, filename);
 
@@ -39,12 +46,14 @@ export async function getConfigFromFile(
  * @param {Object} argv
  * @return {Object}
  */
-export function getConfigFromCommandLine(argv) {
-	const options = {};
+export function getConfigFromCommandLine(argv: CliArgs) {
+	const options = {} as Partial<MrmOptions>;
+
 	forEach(argv, (value, key) => {
 		if (key.startsWith("config:")) {
 			options[key.replace(/^config:/, "")] = value;
 		}
 	});
+
 	return options;
 }

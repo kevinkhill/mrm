@@ -1,24 +1,28 @@
 /**
- * Runs an array of promises in series
+ * Process an array of strings, feeding into a function, that resolves promises, in series.
+ *
+ * @link https://stackoverflow.com/a/29906506
  */
-export function promiseSeries<T>(items: T[], iterator: (item: T) => unknown) {
-	return items.reduce((iterable, name) => {
-		return iterable.then(() => iterator(name));
-	}, Promise.resolve());
+export async function promiseSeries<T>(
+	array: string[],
+	fn: (arrItem: string) => Promise<T>
+) {
+	const results = {} as Record<string, T>;
+	for (let i = 0; i < array.length; i++) {
+		const currItem = array[i];
+		const r = await fn(currItem);
+		results[currItem] = r;
+	}
+	return results; // will be resolved value of promise
 }
 
 /**
  * Executes promise-returning thunks in series until one is resolved
- *
- * @method promiseFirst
- *
- * @param  {Array} thunks
- * @return {Promise}
  */
-export async function promiseFirst<T extends () => unknown>(
-	thunks: T[],
+export async function promiseFirst<T>(
+	thunks: Array<(() => Promise<T>) | (() => T)>,
 	errors: Error[] = []
-) {
+): Promise<T> {
 	if (thunks.length === 0) {
 		throw new Error(`None of the ${errors.length} thunks resolved.
 
@@ -28,7 +32,7 @@ ${errors.join("\n")}`);
 		try {
 			return await thunk();
 		} catch (error) {
-			return promiseFirst(rest, [...errors, error]);
+			return promiseFirst(rest, [...errors, error as Error]);
 		}
 	}
 }
