@@ -4,7 +4,7 @@
     "module": "ESNext",
     "target": "ESNext",
     "rootDir": ".",
-    "outDir": "dist",
+    "outDir": "./build",
     "moduleResolution": "node",
     "lib": [
       "DOM",

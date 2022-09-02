@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 
 import kleur from "kleur";
-import { map, padEnd, sortBy } from "lodash-es";
 import { random } from "middleearth-names";
 import minimist from "minimist";
 import ora from "ora";
+import updateNotifier from "update-notifier";
 
+import packageJson from "../package.json";
 import { CONFIG_FILENAME, DEFAULT_DIRECTORIES, EXAMPLES } from "./constants";
 import {
 	isInvalidTaskError,
@@ -21,12 +22,11 @@ import {
 	printError,
 	resolveDirectories,
 	run,
-	runUpdater,
 	toNaturalList,
 } from "./lib";
 import type { CliArgs, TaskRecords } from "./types/mrm";
 
-export const cliDebug = mrmDebug.extend("cli");
+const cliDebug = mrmDebug.extend("cli");
 
 /**
  * mrm, the cli tool
@@ -189,34 +189,40 @@ function commandHelp(binaryName: string, allTasks: TaskRecords) {
  * Get a pretty printed explanation of how to use `mrm`
  */
 function getUsage(binaryName: string, examples: string[][]): string {
-	const commands = map(examples, x => x.join(""));
+	const commands = examples.map(x => x.join(""));
 	const commandsWidth = longest(commands).length;
 
-	return map(examples, ([command, opts, description]) =>
-		[
-			"   ",
-			kleur.bold(binaryName),
-			kleur.cyan(command),
-			kleur.yellow(opts),
-			padEnd("", commandsWidth - (command + opts).length),
-			description && `# ${description}`,
-		].join(" ")
-	).join("\n");
+	return examples
+		.map(([command, opts, description]) =>
+			[
+				"   ",
+				kleur.bold(binaryName),
+				kleur.cyan(command),
+				kleur.yellow(opts),
+				"".padEnd(commandsWidth - (command + opts).length),
+				description && `# ${description}`,
+			].join(" ")
+		)
+		.join("\n");
 }
 
 /**
  * Build a list of all the tasks and how they run
  */
 function buildTasksList(allTasks: TaskRecords) {
-	const names = sortBy(Object.keys(allTasks));
+	const names = Object.keys(allTasks).sort();
 	const nameColWidth = names.length > 0 ? longest(names).length : 0;
 
-	return map(names, name => {
-		const description = Array.isArray(allTasks[name])
-			? `Runs ${toNaturalList(allTasks[name])}`
-			: allTasks[name];
-		return "    " + kleur.cyan(padEnd(name, nameColWidth)) + "  " + description;
-	}).join("\n");
+	return names
+		.map(name => {
+			const description = Array.isArray(allTasks[name])
+				? `Runs ${toNaturalList(allTasks[name])}`
+				: allTasks[name];
+			return (
+				"    " + kleur.cyan(name.padEnd(nameColWidth)) + "  " + description
+			);
+		})
+		.join("\n");
 }
 
 /**
@@ -233,5 +239,9 @@ process.on("unhandledRejection", (err: Error) => {
 	// }
 });
 
-runUpdater();
+const notifier = updateNotifier({ pkg: packageJson });
+cliDebug("current pkg version: %s", notifier.update?.current);
+cliDebug("latest pkg version: %s", notifier.update?.latest);
+
+notifier.notify();
 main();

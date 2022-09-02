@@ -1,6 +1,5 @@
 import glob from "glob";
 import kleur from "kleur";
-import forEach from "lodash-es/forEach";
 import { createRequire } from "node:module";
 import path from "path";
 
@@ -37,14 +36,14 @@ export async function getAllTasks(
 
 	debug("searching dirs: %O", directories);
 
-	forEach(directories, dir => {
+	for (const dir of directories) {
 		debug("entering: %s", kleur.yellow(dir));
 
 		const tasks = glob.sync(`${dir}/*/index.js`);
 
 		debug("\\ task count: %s", kleur.bold().yellow(tasks.length));
 
-		forEach(tasks, filename => {
+		for (const filename of tasks) {
 			const taskName = path.basename(path.dirname(filename));
 
 			debug(" | %s", kleur.green(taskName));
@@ -53,8 +52,8 @@ export async function getAllTasks(
 				const module = require(filename);
 				allTasks[taskName] = module.description || "";
 			}
-		});
-	});
+		}
+	}
 
 	return allTasks;
 }

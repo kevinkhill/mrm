@@ -17,7 +17,7 @@ export interface MrmOptions {
 }
 
 /**
- * The returned object from `minimist`
+ * The returned object from `minimist` with mrm's extra options
  */
 export interface CliArgs extends ParsedArgs {
 	dir?: string;

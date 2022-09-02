@@ -26,36 +26,36 @@
     "url": "https://github.com/kevinkhill"
   },
   "scripts": {
+    "build": "tsup --format cjs --legacy-output",
     "cli": "tsx ./src/cli.ts",
+    "prestart": "npm run build",
+    "start": "node bin/mrm.js",
     "debug": "DEBUG=mrm* tsx ./src/cli.ts",
-    "build": "tsup --dts",
     "view-config": "tsx ./src/cli.ts --view-config"
   },
-  "type": "module",
+  "type": "commonjs",
   "main": "dist/index.js",
   "bin": {
     "mrm": "dist/cli.js"
   },
-  "types": "dist/index.d.ts",
   "files": [
     "bin",
-    "src"
+    "dist"
   ],
   "dependencies": {
     "debug": "^4.3.4",
     "degit": "^2.8.4",
-    "env-paths": "^3.0.0",
+    "env-paths": "2.2.1",
     "execa": "^6.1.0",
     "glob": "^7.1.6",
     "inquirer": "^7.0.4",
     "kleur": "^3.0.3",
     "libnpx": "^10.2.4",
-    "lodash-es": "^4.17.21",
     "make-dir": "^3.1.0",
     "middleearth-names": "^1.1.0",
     "minimist": "^1.2.0",
     "mrm-core": "^7.0.0",
-    "ora": "^6.1.2",
+    "ora": "5.4.1",
     "rimraf": "^3.0.2",
     "semver-utils": "^1.1.4",
     "update-notifier": "^4.1.0",
@@ -65,7 +65,6 @@
     "@types/debug": "^4.1.7",
     "@types/inquirer": "^9.0.1",
     "@types/jest": "^28.1.7",
-    "@types/lodash-es": "^4.17.6",
     "@types/node": "^18.7.14",
     "@types/update-notifier": "^6.0.1",
     "@types/which": "^2.0.1",
@@ -80,6 +79,6 @@
     "tsx": "^3.9.0"
   },
   "engines": {
-    "node": ">=10.13"
+    "node": ">=14.16"
   }
 }

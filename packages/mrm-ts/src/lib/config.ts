@@ -1,9 +1,9 @@
-import { forEach } from "lodash-es";
 import { createRequire } from "node:module";
 
 import { CONFIG_FILENAME } from "../constants";
 import type { CliArgs, MrmOptions } from "../types/mrm";
 import { tryFile } from "./utils";
+
 /**
  * Load the configuration from file and command line
  */
@@ -42,11 +42,11 @@ export async function getConfigFromFile(
 export function getConfigFromCommandLine(argv: CliArgs) {
 	const options = {} as Partial<MrmOptions>;
 
-	forEach(argv, (value, key) => {
-		if (key.startsWith("config:")) {
-			options[key.replace(/^config:/, "")] = value;
-		}
-	});
+	Object.keys(argv)
+		.filter(k => k.startsWith("config:"))
+		.forEach(key => {
+			options[key.replace(/^config:/, "")] = options[key];
+		});
 
 	return options;
 }
