@@ -9,9 +9,9 @@ import { promisify } from "node:util";
 import rimraf from "rimraf";
 import which from "which";
 
-import { mrmDebug } from "..";
 import { CONFIG_FILENAME, TASK_CACHE_DIR } from "../constants";
 import { parseSpec } from "./parseSpec";
+import { mrmDebug } from "./taskRunner";
 
 /**
  * @typedef DegitConfig

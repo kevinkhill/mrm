@@ -1,23 +1,21 @@
-import { execa } from "execa";
+import { execa, ExecaReturnValue } from "execa";
 import kleur from "kleur";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 import which from "which";
 
-import { mrmDebug } from "..";
 import { TASK_CACHE_DIR } from "../constants";
+import { mrmDebug } from "../index";
 import { MrmOptions } from "../types/mrm";
 import { resolveUsingDegit } from "./degit";
 
 /**
  * Run an `npm` command in a directory
- *
- * @return Promise<execa.ExecaReturnValue<string>>
  */
 export async function npmCommand(
-	command,
-	cwd
-): Promise<execa.ExecaReturnValue<string>> {
+	command: string[],
+	cwd: string
+): Promise<ExecaReturnValue<string>> {
 	const debug = mrmDebug.extend("npmCommand");
 
 	const npm = await which("npm");
@@ -25,9 +23,7 @@ export async function npmCommand(
 	debug("entering: %s", cwd);
 	debug("command: %s", command);
 
-	const { stdout } = await execa(npm, command, { cwd });
-
-	return stdout;
+	return await execa(npm, command, { cwd });
 }
 
 /**
@@ -50,12 +46,8 @@ export async function ensureDefaultTasksAvailable(options: MrmOptions) {
 
 /**
  * Install a package with `npm`
- *
- * @param pkgSpec {string}
- * @param cwd {string}
- * @return string
  */
-export async function installWithNpm(pkgSpec, cwd) {
+export async function installWithNpm(pkgSpec: string, cwd: string): string {
 	const debug = mrmDebug.extend("npmInstaller");
 	const resolvedDir = path.resolve(cwd);
 

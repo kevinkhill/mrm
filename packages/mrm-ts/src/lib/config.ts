@@ -1,16 +1,17 @@
 import { forEach } from "lodash-es";
 import { createRequire } from "node:module";
 
-import { tryFile } from "./utils";
-
+import { CONFIG_FILENAME } from "../constants";
 import type { CliArgs, MrmOptions } from "../types/mrm";
-
+import { tryFile } from "./utils";
+/**
+ * Load the configuration from file and command line
+ */
 export async function getConfig(
 	directories: string[],
-	filename: string,
 	argv: CliArgs
 ): Promise<MrmOptions> {
-	const configFromFile = await getConfigFromFile(directories, filename);
+	const configFromFile = await getConfigFromFile(directories);
 
 	return {
 		...configFromFile,
@@ -20,19 +21,14 @@ export async function getConfig(
 
 /**
  * Find and load config file.
- *
- * @param {string[]} directories
- * @param {string} filename
- * @return {Promise<Object>}
  */
 export async function getConfigFromFile(
-	directories: string[],
-	filename: string
+	directories: string[]
 ): Promise<Partial<MrmOptions>> {
 	const require = createRequire(import.meta.url);
 
 	try {
-		const filepath = await tryFile(directories, filename);
+		const filepath = await tryFile(directories, CONFIG_FILENAME);
 
 		return require(filepath);
 	} catch (err) {
@@ -42,9 +38,6 @@ export async function getConfigFromFile(
 
 /**
  * Get config options from command line, passed as --config:foo bar.
- *
- * @param {Object} argv
- * @return {Object}
  */
 export function getConfigFromCommandLine(argv: CliArgs) {
 	const options = {} as Partial<MrmOptions>;

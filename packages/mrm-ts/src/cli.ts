@@ -13,16 +13,18 @@ import {
 	isUnknownAliasError,
 	isUnknownTaskError,
 } from "./errors";
-import { mrmDebug, run } from "./index";
-import { getAllTasks } from "./lib/collector";
-import { getConfig } from "./lib/config";
-import { printError } from "./lib/console";
-import { resolveDirectories } from "./lib/resolveUsingNpx";
-import { runUpdater } from "./lib/runUpdater";
-import { toNaturalList } from "./lib/toNaturalList";
-import { longest } from "./lib/utils";
-
-import type { CliArgs, MrmOptions, TaskRecords } from "./types/mrm";
+import { mrmDebug } from "./index";
+import {
+	getAllTasks,
+	getConfig,
+	longest,
+	printError,
+	resolveDirectories,
+	run,
+	runUpdater,
+	toNaturalList,
+} from "./lib";
+import type { CliArgs, TaskRecords } from "./types/mrm";
 
 export const cliDebug = mrmDebug.extend("cli");
 
@@ -36,7 +38,7 @@ async function main() {
 		alias: {
 			i: "interactive",
 		},
-		boolean: ["view-config"],
+		boolean: ["silent", "verbose"],
 	});
 
 	debug("argv = %O", argv);
@@ -57,20 +59,20 @@ async function main() {
 	const preset = argv.preset || "default";
 	const isDefaultPreset = preset === "default";
 
-	spinner.color = "yellow";
-	spinner.text = `resolving directories`;
+	spinner.color = "cyan";
+	spinner.text = "mrm: Fetching the default preset";
 	const directories = await resolveDirectories(
 		DEFAULT_DIRECTORIES,
 		preset,
-		argv
+		argv.dir
 	);
-
-	spinner.color = "blue";
-	spinner.text = `resolving configs`;
-	const options = await getConfig(directories, CONFIG_FILENAME, argv);
-
 	debug("Resolved Directories: %O", directories);
+
+	const options = await getConfig(directories, argv);
 	debug("Parsed Options: %O", options);
+
+	const allTasks = await getAllTasks(directories, options);
+	debug("Collected Tasks: %O", allTasks);
 
 	if (argv["view-config"]) {
 		console.log("\n", kleur.yellow().underline("Tasks"), "\n");
@@ -79,12 +81,12 @@ async function main() {
 		console.log(directories);
 		console.log("\n", kleur.yellow().underline("Options"), "\n");
 		console.log(options);
-		process.exit(1);
+		return;
 	}
 
 	if (tasks.length === 0 || tasks[0] === "help") {
-		spinner.clear();
-		await commandHelp(binaryName, directories, options);
+		spinner.stopAndPersist();
+		commandHelp(binaryName, allTasks);
 		return;
 	}
 
@@ -167,21 +169,17 @@ Note that when a preset is specified no default search locations are used.`
 		}
 	}
 }
+
 /**
  * Build and output for the command help for `mrm`
  */
-async function commandHelp(
-	binaryName: string,
-	directories: string[],
-	options: MrmOptions
-) {
-	const allTasks = await getAllTasks(directories, options);
+function commandHelp(binaryName: string, allTasks: TaskRecords) {
 	console.log(
 		[
 			kleur.underline("Usage"),
 			getUsage(binaryName, EXAMPLES),
 			kleur.underline("Available tasks"),
-			await getTasksList(allTasks),
+			buildTasksList(allTasks),
 		].join("\n\n")
 	);
 	console.log("\n");
@@ -209,7 +207,7 @@ function getUsage(binaryName: string, examples: string[][]): string {
 /**
  * Build a list of all the tasks and how they run
  */
-async function getTasksList(allTasks: TaskRecords) {
+function buildTasksList(allTasks: TaskRecords) {
 	const names = sortBy(Object.keys(allTasks));
 	const nameColWidth = names.length > 0 ? longest(names).length : 0;
 

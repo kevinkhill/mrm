@@ -6,6 +6,11 @@ import { mrmDebug } from "../index";
 import { promiseFirst } from "./promises";
 
 /**
+ * Curried version of the Array#join method
+ */
+export const join = (sep: string, items: string[]) => items.join(sep);
+
+/**
  * Find the longest string in an array
  */
 export function longest(input: string[]): string {
@@ -14,10 +19,6 @@ export function longest(input: string[]): string {
 
 /**
  * Returns the correct `mrm-` prefixed package name
- *
- * @param {} type
- * @param {string} packageName
- * @returns {string}
  */
 export function getPackageName(
 	type: "task" | "preset",
@@ -37,17 +38,17 @@ export async function tryFile(
 	filename: string
 ): Promise<string> {
 	const debug = mrmDebug.extend("tryFile");
-	debug("search: %s", kleur.bold().cyan(filename));
+	debug("trying for %s", kleur.cyan(filename));
 
 	try {
 		return promiseFirst(
 			directories.map(dir => {
-				debug("entering: %s", kleur.yellow(dir));
+				debug("entering %s", kleur.yellow(dir));
 				const filepath = path.resolve(dir, filename);
 
 				return async (): Promise<string> => {
 					await fs.promises.access(filepath);
-					debug("+++ %s", kleur.green(filepath));
+					debug("\\ found: %s", kleur.cyan(filepath));
 					return filepath;
 				};
 			})

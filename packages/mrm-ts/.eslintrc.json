@@ -25,32 +25,7 @@
     "prettier" // KEEP THIS LAST
   ],
   "rules": {
-    "simple-import-sort/imports": [
-      "error",
-      {
-        // The default grouping, but with type imports last as a separate
-        // group, sorting that group like non-type imports are grouped.
-        "groups": [
-          [
-            "^\\u0000"
-          ],
-          [
-            "^@?\\w"
-          ],
-          [
-            "^"
-          ],
-          [
-            "^\\."
-          ],
-          [
-            "^@?\\w.*\\u0000$",
-            "^[^.].*\\u0000$",
-            "^\\..*\\u0000$"
-          ]
-        ]
-      }
-    ],
+    "simple-import-sort/imports": "error",
     "simple-import-sort/exports": "error",
     "import/first": "error",
     "import/newline-after-import": "error",

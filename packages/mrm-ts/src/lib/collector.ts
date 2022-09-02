@@ -4,15 +4,11 @@ import forEach from "lodash-es/forEach";
 import { createRequire } from "node:module";
 import path from "path";
 
-import { mrmDebug } from "..";
-import { MrmOptions } from "../types/mrm";
+import { mrmDebug } from "../index";
+import type { MrmOptions } from "../types/mrm";
 
-/**
- * Check if a alias is a valid
- */
-export function isValidAlias(alias: string, options: MrmOptions): boolean {
-	return Object.hasOwn(getAllAliases(options), alias);
-}
+// Return the functionality of `require` from commonjs
+const require = createRequire(import.meta.url);
 
 /**
  * Get all aliases from the options
@@ -22,17 +18,22 @@ export function getAllAliases(options: MrmOptions): MrmOptions["aliases"] {
 }
 
 /**
+ * Check if a alias is a valid
+ */
+export function isValidAlias(alias: string, options: MrmOptions): boolean {
+	return Object.hasOwn(getAllAliases(options), alias);
+}
+
+/**
  * Return all task and alias names and descriptions from all search directories.
  */
 export async function getAllTasks(
 	directories: string[],
-	options: MrmOptions
+	options: Partial<MrmOptions>
 ): Promise<Record<string, string[]>> {
 	const debug = mrmDebug.extend("taskCollector");
 
-	// Return the functionality of `require` from commonjs
-	const require = createRequire(import.meta.url);
-	const allTasks = getAllAliases(options);
+	const allTasks = options.aliases ?? {};
 
 	debug("searching dirs: %O", directories);
 
