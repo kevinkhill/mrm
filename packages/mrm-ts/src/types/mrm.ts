@@ -12,7 +12,7 @@ export interface MrmOptions {
 	name: string;
 	email: string;
 	github: string;
-	aliases?: Record<string, undefined | string[]>;
+	aliases?: TaskRecords;
 	eslintPeerDependencies?: string[];
 }
 
@@ -22,6 +22,8 @@ export interface MrmOptions {
 export interface CliArgs extends ParsedArgs {
 	dir?: string;
 	silent: boolean;
+	options: boolean;
+	"dry-run": boolean;
 	interactive: boolean;
 }
 
@@ -29,6 +31,6 @@ export interface CliArgs extends ParsedArgs {
  * Starting a task type...
  */
 export interface MrmTask {
-	(): void;
+	(config: Partial<MrmOptions>, argv: CliArgs): void;
 	parameters: Record<string, any>;
 }

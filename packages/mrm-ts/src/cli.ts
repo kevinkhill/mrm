@@ -6,12 +6,7 @@ import minimist from "minimist";
 import updateNotifier from "update-notifier";
 
 import packageJson from "../package.json";
-import {
-	CONFIG_FILENAME,
-	DEFAULT_DIRECTORIES,
-	EXAMPLES,
-	PREFIX,
-} from "./constants";
+import { CONFIG_FILENAME, EXAMPLES, PREFIX } from "./constants";
 import {
 	getAllTasks,
 	getConfig,
@@ -26,6 +21,7 @@ import {
 	run,
 	toNaturalList,
 } from "./lib";
+import { TaskStore } from "./TaskStore";
 import type { CliArgs, TaskRecords } from "./types/mrm";
 
 const cliDebug = mrmDebug.extend("cli");
@@ -41,7 +37,7 @@ async function main() {
 		alias: {
 			i: "interactive",
 		},
-		boolean: ["silent", "options"],
+		boolean: ["silent", "options", "dry-run"],
 	}) as CliArgs;
 
 	debug("argv = %O", argv);
@@ -68,11 +64,11 @@ async function main() {
 
 	// search for the default preset in the default directories
 	const directories = await resolveDirectories(
-		DEFAULT_DIRECTORIES,
+		TaskStore.DEFAULT_DIRECTORIES,
 		preset,
 		argv.dir
 	);
-	debug("Resolved Directories: %O", directories);
+	debug("resolved directories: %O", directories);
 
 	// Gather options from the directories
 	const options = await getConfig(directories, argv);
@@ -104,7 +100,6 @@ async function main() {
 
 		// Gather all the tasks from the directories
 		const allTasks = await getAllTasks(directories, options);
-		debug("all tasks: %O", allTasks);
 		commandHelp(binaryName, allTasks);
 		return;
 	}

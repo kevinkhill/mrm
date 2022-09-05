@@ -2,8 +2,8 @@ import glob from "glob";
 import kleur from "kleur";
 import path from "node:path";
 
-import type { MrmOptions } from "../types/mrm";
-import { getAllAliases, mrmDebug } from "./utils";
+import type { MrmOptions, TaskRecords } from "../types/mrm";
+import { mrmDebug } from "./utils";
 
 /**
  * Return all task and alias names and descriptions from all search directories.
@@ -11,9 +11,9 @@ import { getAllAliases, mrmDebug } from "./utils";
 export async function getAllTasks(
 	directories: string[],
 	options: MrmOptions
-): Promise<Record<string, string[] | undefined>> {
+): Promise<TaskRecords> {
 	const debug = mrmDebug.extend("getAllTasks");
-	const allTasks = getAllAliases(options);
+	const allTasks: TaskRecords = options.aliases ?? ({} as TaskRecords);
 
 	debug("searching dirs: %O", directories);
 

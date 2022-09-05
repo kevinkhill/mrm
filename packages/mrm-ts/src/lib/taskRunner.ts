@@ -1,6 +1,5 @@
 import inquirer from "inquirer";
 import kleur from "kleur";
-import { createRequire } from "node:module";
 
 import type { CliArgs, MrmOptions, MrmTask } from "../types/mrm";
 import {
@@ -13,9 +12,6 @@ import { resolveUsingNpx } from "./npxResolver";
 import { promiseFirst, promiseSeries } from "./promises";
 import { getAllAliases, getPackageName, mrmDebug, tryFile } from "./utils";
 
-/* Return the functionality of `require` from commonjs */
-const require = createRequire(import.meta.url);
-
 const debug = mrmDebug.extend("taskRunner");
 
 /**
@@ -27,26 +23,25 @@ export async function run(
 	options: MrmOptions,
 	argv: CliArgs
 ): Promise<unknown> {
-	debug("task list: %O", name);
+	const taskList = [name].flat();
+	const aliases = options.aliases;
 
-	if (Array.isArray(name)) {
-		return promiseSeries(name, taskName => {
-			return run(taskName, directories, options, argv);
-		});
-	}
+	debug("tasks to run: %O", taskList);
+	debug("aliases: %O", aliases);
 
-	const aliases = getAllAliases(options);
-	if (Object.keys(aliases).includes(name)) {
-		return await runAlias(name, directories, options, argv);
-	}
+	return promiseSeries(taskList, async taskName => {
+		if (aliases && Object.hasOwn(aliases, taskName)) {
+			return await runAlias(taskName, directories, options, argv);
+		}
 
-	return await runTask(name, directories, options, argv);
+		return await runTask(taskName, directories, options, argv);
+	});
 }
 
 /**
  * Run an alias.
  */
-export async function runAlias(
+async function runAlias(
 	aliasName: string,
 	directories: string[],
 	options: MrmOptions,
@@ -62,70 +57,56 @@ export async function runAlias(
 		console.log(kleur.yellow(`Running alias ${aliasName}...`));
 	}
 
-	debug("running alias: %s", kleur.yellow(aliasName));
+	debug("running alias: %s", kleur.bgMagenta().white(aliasName));
 
-	return promiseSeries(tasks, name => {
-		if (tasks.includes(name)) {
-			return runAlias(name, directories, options, argv);
-		} else {
-			return runTask(name, directories, options, argv);
-		}
-	});
+	return run(tasks, directories, options, argv);
 }
 
 /**
  * Run a task.
  */
-export async function runTask(
+async function runTask(
 	taskName: string,
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
 ): Promise<unknown> {
-	debug("running task: %s", kleur.magenta(taskName));
+	debug("running task: %s", kleur.bgBlue().white(taskName));
 
 	const taskPackageName = getPackageName("task", taskName);
+	const modulePath = await promiseFirst([
+		() => tryFile(`${taskName}/index.js`, directories),
+		() => require.resolve(taskPackageName),
+		() => resolveUsingNpx(taskPackageName),
+		() => require.resolve(taskName),
+		() => resolveUsingNpx(taskName),
+	]);
 
-	let modulePath: string | null;
-	try {
-		modulePath = await promiseFirst([
-			() => tryFile(`${taskName}/index.js`, directories),
-			() => require.resolve(taskPackageName),
-			() => resolveUsingNpx(taskPackageName),
-			() => require.resolve(taskName),
-			() => resolveUsingNpx(taskName),
-		]);
-	} catch {
-		modulePath = null;
+	if (!modulePath) {
+		throw new MrmUnknownTask(`Task "${taskName}" not found.`, {
+			taskName,
+		});
 	}
 
-	return new Promise((resolve, reject) => {
-		if (!modulePath) {
-			reject(
-				new MrmUnknownTask(`Task "${taskName}" not found.`, {
-					taskName,
-				})
-			);
-			return;
-		}
+	// replacing require()
+	const module = (await import(modulePath)).default as MrmTask;
 
-		const module = require(modulePath);
-		if (typeof module !== "function") {
-			reject(
-				new MrmInvalidTask(`Cannot call task "${taskName}".`, { taskName })
-			);
-			return;
-		}
+	debug("imported: %O", module);
 
-		if (!argv.silent || !mrmDebug.enabled) {
-			console.log(kleur.cyan(`Running ${taskName}...`));
-		}
+	if (typeof module !== "function") {
+		throw new MrmInvalidTask(`Cannot call task "${taskName}".`, { taskName });
+	}
 
-		Promise.resolve(getTaskOptions(module, argv.interactive, options))
-			.then(config => module(config, argv))
-			.then(resolve)
-			.catch(reject);
-	});
+	if (!argv.silent || !mrmDebug.enabled) {
+		console.log(kleur.cyan(`Running ${taskName}...`));
+	}
+
+	// Gather the task's options
+	const config = await getTaskOptions(module, argv.interactive, options);
+	debug("task config: %O", config);
+
+	// Run the task
+	return module(config, argv);
 }
 
 /**
