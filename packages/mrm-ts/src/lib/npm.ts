@@ -4,7 +4,7 @@ import { lstat } from "node:fs/promises";
 import path from "node:path";
 import which from "which";
 
-import { mrmDebug } from "../index";
+import { mrmDebug } from "./utils";
 
 /**
  * Run an `npm` command in a directory

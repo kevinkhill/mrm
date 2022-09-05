@@ -1,20 +1,52 @@
+import Debug from "debug";
 import fs from "fs";
 import kleur from "kleur";
-import path from "path";
+import { lstatSync } from "node:fs";
+import { lstat } from "node:fs/promises";
+import path from "node:path";
 
-import { mrmDebug } from "../index";
+import type { MrmOptions } from "../types/mrm";
 import { promiseFirst } from "./promises";
 
-/**
- * Curried version of the Array#join method
- */
-export const join = (sep: string, items: string[]) => items.join(sep);
+export const mrmDebug = Debug("mrm");
 
 /**
  * Find the longest string in an array
  */
 export function longest(input: string[]): string {
 	return input.reduce((a, b) => (a.length > b.length ? a : b), "");
+}
+
+/**
+ * Test if a path exists
+ */
+export async function isDir(dir: string): Promise<boolean> {
+	const stat = await lstat(path.resolve(dir));
+	return stat.isDirectory();
+}
+
+/**
+ * Test if a path exists, synchronously
+ */
+export function isDirSync(dir: string): boolean {
+	const stat = lstatSync(path.resolve(dir));
+	return stat.isDirectory();
+}
+
+/**
+ * Pretty Error messages
+ */
+export function printError(message: string) {
+	console.log();
+	console.error(kleur.bold().red(message));
+	console.log();
+}
+
+/**
+ * Get all aliases from the options
+ */
+export function getAllAliases(options: MrmOptions) {
+	return options?.aliases ?? {};
 }
 
 /**
@@ -31,11 +63,29 @@ export function getPackageName(
 }
 
 /**
+ * Turn a list of items into a natural, readable list
+ *
+ * Code adapted from `lisitify`
+ * @link https://github.com/ljharb/listify
+ */
+export function toNaturalList(
+	list: string[],
+	separator = ", ",
+	finalWord = "and"
+): string {
+	const trimmed = list.filter(item => item.trim());
+	const head = trimmed.slice(0, -1).join(separator);
+	const tail = `${finalWord} ${trimmed[trimmed.length - 1]}`;
+
+	return [head, tail].join(separator);
+}
+
+/**
  * Try to load a file from a list of folders.
  */
 export async function tryFile(
-	directories: string[],
-	filename: string
+	filename: string,
+	directories: string[]
 ): Promise<string> {
 	const debug = mrmDebug.extend("tryFile");
 	debug("trying for %s", kleur.cyan(filename));
@@ -43,12 +93,12 @@ export async function tryFile(
 	try {
 		return promiseFirst(
 			directories.map(dir => {
-				debug("entering %s", kleur.yellow(dir));
+				debug("entering: %s", kleur.yellow(dir));
 				const filepath = path.resolve(dir, filename);
 
 				return async (): Promise<string> => {
 					await fs.promises.access(filepath);
-					debug("\\ found: %s", kleur.cyan(filepath));
+					debug(" | %s", kleur.green(filepath));
 					return filepath;
 				};
 			})

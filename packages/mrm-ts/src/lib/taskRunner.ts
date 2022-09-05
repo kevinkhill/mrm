@@ -2,42 +2,45 @@ import inquirer from "inquirer";
 import kleur from "kleur";
 import { createRequire } from "node:module";
 
+import type { CliArgs, MrmOptions, MrmTask } from "../types/mrm";
 import {
 	MrmInvalidTask,
 	MrmUndefinedOption,
 	MrmUnknownAlias,
 	MrmUnknownTask,
-} from "../errors";
-import type { CliArgs, MrmOptions, MrmTask } from "../types/mrm";
-import { getAllAliases, isValidAlias } from "./collector";
+} from "./errors";
 import { resolveUsingNpx } from "./npxResolver";
 import { promiseFirst, promiseSeries } from "./promises";
-import { getPackageName, tryFile } from "./utils";
+import { getAllAliases, getPackageName, mrmDebug, tryFile } from "./utils";
 
 /* Return the functionality of `require` from commonjs */
 const require = createRequire(import.meta.url);
 
+const debug = mrmDebug.extend("taskRunner");
+
 /**
- * Run a task.
+ * Run a single or list of tasks.
  */
-export function run(
-	taskList: string | string[],
+export async function run(
+	name: string | string[],
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<any> {
-	if (Array.isArray(taskList)) {
-		return promiseSeries(taskList, task => {
-			return run(task, directories, options, argv);
+): Promise<unknown> {
+	debug("task list: %O", name);
+
+	if (Array.isArray(name)) {
+		return promiseSeries(name, taskName => {
+			return run(taskName, directories, options, argv);
 		});
 	}
 
-	const task = taskList;
-	if (isValidAlias(task, options)) {
-		return runAlias(task, directories, options, argv);
+	const aliases = getAllAliases(options);
+	if (Object.keys(aliases).includes(name)) {
+		return await runAlias(name, directories, options, argv);
 	}
 
-	return runTask(task, directories, options, argv);
+	return await runTask(name, directories, options, argv);
 }
 
 /**
@@ -48,19 +51,25 @@ export async function runAlias(
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<any> {
+): Promise<unknown> {
 	const tasks = getAllAliases(options)[aliasName];
 
 	if (!tasks) {
 		throw new MrmUnknownAlias(`Alias "${aliasName}" not found.`);
 	}
 
-	console.log(kleur.yellow(`Running alias ${aliasName}...`));
+	if (!argv.silent || !mrmDebug.enabled) {
+		console.log(kleur.yellow(`Running alias ${aliasName}...`));
+	}
+
+	debug("running alias: %s", kleur.yellow(aliasName));
 
 	return promiseSeries(tasks, name => {
-		const runner = isValidAlias(name, options) ? runAlias : runTask;
-
-		return runner(name, directories, options, argv);
+		if (tasks.includes(name)) {
+			return runAlias(name, directories, options, argv);
+		} else {
+			return runTask(name, directories, options, argv);
+		}
 	});
 }
 
@@ -72,13 +81,15 @@ export async function runTask(
 	directories: string[],
 	options: MrmOptions,
 	argv: CliArgs
-): Promise<string> {
+): Promise<unknown> {
+	debug("running task: %s", kleur.magenta(taskName));
+
 	const taskPackageName = getPackageName("task", taskName);
 
 	let modulePath: string | null;
 	try {
 		modulePath = await promiseFirst([
-			() => tryFile(directories, `${taskName}/index.js`),
+			() => tryFile(`${taskName}/index.js`, directories),
 			() => require.resolve(taskPackageName),
 			() => resolveUsingNpx(taskPackageName),
 			() => require.resolve(taskName),
@@ -106,7 +117,9 @@ export async function runTask(
 			return;
 		}
 
-		console.log(kleur.cyan(`Running ${taskName}...`));
+		if (!argv.silent || !mrmDebug.enabled) {
+			console.log(kleur.cyan(`Running ${taskName}...`));
+		}
 
 		Promise.resolve(getTaskOptions(module, argv.interactive, options))
 			.then(config => module(config, argv))

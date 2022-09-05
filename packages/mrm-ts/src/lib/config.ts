@@ -1,8 +1,11 @@
-import { createRequire } from "node:module";
+import { readFile } from "fs/promises";
+import kleur from "kleur";
 
 import { CONFIG_FILENAME } from "../constants";
 import type { CliArgs, MrmOptions } from "../types/mrm";
-import { tryFile } from "./utils";
+import { mrmDebug, tryFile } from "./utils";
+
+const debug = mrmDebug.extend("config");
 
 /**
  * Load the configuration from file and command line
@@ -12,6 +15,7 @@ export async function getConfig(
 	argv: CliArgs
 ): Promise<MrmOptions> {
 	const configFromFile = await getConfigFromFile(directories);
+	debug("loaded: %O", configFromFile);
 
 	return {
 		...configFromFile,
@@ -25,12 +29,11 @@ export async function getConfig(
 export async function getConfigFromFile(
 	directories: string[]
 ): Promise<Partial<MrmOptions>> {
-	const require = createRequire(import.meta.url);
-
 	try {
-		const filepath = await tryFile(directories, CONFIG_FILENAME);
+		const filepath = await tryFile(CONFIG_FILENAME, directories);
+		debug("found: %s", kleur.green(filepath));
 
-		return require(filepath);
+		return JSON.parse(await readFile(filepath, "utf8"));
 	} catch (err) {
 		return {};
 	}
@@ -39,14 +42,13 @@ export async function getConfigFromFile(
 /**
  * Get config options from command line, passed as --config:foo bar.
  */
-export function getConfigFromCommandLine(argv: CliArgs) {
-	const options = {} as Partial<MrmOptions>;
-
-	Object.keys(argv)
+export function getConfigFromCommandLine(argv: CliArgs): Partial<MrmOptions> {
+	return Object.keys(argv)
 		.filter(k => k.startsWith("config:"))
-		.forEach(key => {
-			options[key.replace(/^config:/, "")] = options[key];
-		});
-
-	return options;
+		.reduce((options, key) => {
+			return {
+				...options,
+				[key.replace(/^config:/, "")]: argv[key],
+			};
+		}, {});
 }

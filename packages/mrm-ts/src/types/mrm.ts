@@ -12,8 +12,8 @@ export interface MrmOptions {
 	name: string;
 	email: string;
 	github: string;
-	aliases: Record<string, string[]>;
-	eslintPeerDependencies: string[];
+	aliases?: Record<string, undefined | string[]>;
+	eslintPeerDependencies?: string[];
 }
 
 /**
@@ -21,7 +21,8 @@ export interface MrmOptions {
  */
 export interface CliArgs extends ParsedArgs {
 	dir?: string;
-	interactive?: boolean;
+	silent: boolean;
+	interactive: boolean;
 }
 
 /**

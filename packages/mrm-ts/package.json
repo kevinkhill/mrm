@@ -31,7 +31,7 @@
     "prestart": "npm run build",
     "start": "node bin/mrm.js",
     "debug": "DEBUG=mrm* tsx ./src/cli.ts",
-    "view-config": "tsx ./src/cli.ts --view-config"
+    "view-config": "tsx ./src/cli.ts --options"
   },
   "type": "commonjs",
   "main": "dist/index.js",

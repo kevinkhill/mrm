@@ -15,6 +15,13 @@ export class MrmBaseError extends Error {
 	}
 }
 
+export class MrmPathNotExist extends MrmBaseError {
+	constructor(message: string) {
+		super(message);
+		this.name = this.constructor.name;
+	}
+}
+
 export class MrmUnknownAlias extends MrmBaseError {
 	constructor(message: string) {
 		super(message);

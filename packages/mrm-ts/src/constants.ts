@@ -1,6 +1,9 @@
 import envPaths from "env-paths";
+import kleur from "kleur";
 import { homedir } from "node:os";
 import path from "node:path";
+
+export const PREFIX = `[${kleur.cyan("mrm")}]`;
 
 /**
  * Filename for mrm configuration

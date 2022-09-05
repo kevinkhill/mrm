@@ -3,22 +3,24 @@
 import kleur from "kleur";
 import { random } from "middleearth-names";
 import minimist from "minimist";
-import ora from "ora";
 import updateNotifier from "update-notifier";
 
 import packageJson from "../package.json";
-import { CONFIG_FILENAME, DEFAULT_DIRECTORIES, EXAMPLES } from "./constants";
 import {
+	CONFIG_FILENAME,
+	DEFAULT_DIRECTORIES,
+	EXAMPLES,
+	PREFIX,
+} from "./constants";
+import {
+	getAllTasks,
+	getConfig,
 	isInvalidTaskError,
 	isUndefinedOptionError,
 	isUnknownAliasError,
 	isUnknownTaskError,
-} from "./errors";
-import { mrmDebug } from "./index";
-import {
-	getAllTasks,
-	getConfig,
 	longest,
+	mrmDebug,
 	printError,
 	resolveDirectories,
 	run,
@@ -28,24 +30,21 @@ import type { CliArgs, TaskRecords } from "./types/mrm";
 
 const cliDebug = mrmDebug.extend("cli");
 
+let loadingDotsInterval: NodeJS.Timer;
+
 /**
  * mrm, the cli tool
  */
 async function main() {
-	const spinner = ora("Loading mrm");
 	const debug = cliDebug;
-	const argv: CliArgs = minimist(process.argv.slice(2), {
+	const argv = minimist(process.argv.slice(2), {
 		alias: {
 			i: "interactive",
 		},
-		boolean: ["silent", "verbose"],
-	});
+		boolean: ["silent", "options"],
+	}) as CliArgs;
 
 	debug("argv = %O", argv);
-
-	if (!mrmDebug.enabled) {
-		spinner.start();
-	}
 
 	// Collect positional args as tasks to run
 	const tasks = argv._;
@@ -59,8 +58,15 @@ async function main() {
 	const preset = argv.preset || "default";
 	const isDefaultPreset = preset === "default";
 
-	spinner.color = "cyan";
-	spinner.text = "mrm: Fetching the default preset";
+	// Show shome loading dots while we wait.
+	if (!mrmDebug.enabled && !argv.silent) {
+		process.stdout.write(`${PREFIX} Fetching the default preset`);
+		loadingDotsInterval = setInterval(() => {
+			process.stdout.write(".");
+		}, 1000);
+	}
+
+	// search for the default preset in the default directories
 	const directories = await resolveDirectories(
 		DEFAULT_DIRECTORIES,
 		preset,
@@ -68,30 +74,42 @@ async function main() {
 	);
 	debug("Resolved Directories: %O", directories);
 
+	// Gather options from the directories
 	const options = await getConfig(directories, argv);
-	debug("Parsed Options: %O", options);
+	debug("options: %O", options);
 
-	const allTasks = await getAllTasks(directories, options);
-	debug("Collected Tasks: %O", allTasks);
+	// Now that we are loaded, kill the dots timer.
+	if (!mrmDebug.enabled && !argv.silent) {
+		clearInterval(loadingDotsInterval);
+		console.log(kleur.green("done"));
+	}
 
-	if (argv["view-config"]) {
-		console.log("\n", kleur.yellow().underline("Tasks"), "\n");
-		console.log(tasks);
-		console.log("\n", kleur.yellow().underline("Directories"), "\n");
-		console.log(directories);
+	/**
+	 * If called `--options`, dump them to the console and exit.
+	 */
+	if (argv["options"]) {
 		console.log("\n", kleur.yellow().underline("Options"), "\n");
 		console.log(options);
 		return;
 	}
 
+	/**
+	 * If called with no tasks, `help` as a "task", or `--help`
+	 * show the mrm usage console output and exit.
+	 */
 	if (tasks.length === 0 || tasks[0] === "help") {
-		spinner.stopAndPersist();
+		if (!argv.silent) {
+			console.log(PREFIX, kleur.yellow("No tasks to run"));
+		}
+
+		// Gather all the tasks from the directories
+		const allTasks = await getAllTasks(directories, options);
+		debug("all tasks: %O", allTasks);
 		commandHelp(binaryName, allTasks);
 		return;
 	}
 
 	try {
-		spinner.succeed("Done.");
 		await run(tasks, directories, options, argv);
 	} catch (err: unknown) {
 		if (isUnknownAliasError(err)) {
@@ -109,13 +127,11 @@ async function main() {
 						`mrm-task-${taskName} package on the npm registry`,
 						`${taskName} package on the npm registry`,
 					]);
-				printError(
-					`${err.message}
+				printError(`${err.message}
 
 We've tried these locations:
 
-- ${modules.join("\n- ")}`
-				);
+- ${modules.join("\n- ")}`);
 			} else {
 				printError(`Task "${taskName}" not found in the "${preset}" preset.
 
@@ -135,8 +151,8 @@ Make sure your task module exports a function.`);
 				.join(" ")}`;
 			if (isDefaultPreset) {
 				const userDirectories = directories.slice(0, -1);
-				printError(
-					`${heading}
+
+				printError(`${heading}
 
 1. Create a "${CONFIG_FILENAME}" file:
 
@@ -151,18 +167,15 @@ In one of these folders:
 2. Or pass options via command line:
 
 ${cliHelp}
-	`
-				);
+	`);
 			} else {
-				printError(
-					`${heading}
+				printError(`${heading}
 
 You can pass the option via command line:
 
 ${cliHelp}
 
-Note that when a preset is specified no default search locations are used.`
-				);
+Note that when a preset is specified no default search locations are used.`);
 			}
 		} else {
 			throw err;
@@ -174,6 +187,7 @@ Note that when a preset is specified no default search locations are used.`
  * Build and output for the command help for `mrm`
  */
 function commandHelp(binaryName: string, allTasks: TaskRecords) {
+	console.log("\n");
 	console.log(
 		[
 			kleur.underline("Usage"),

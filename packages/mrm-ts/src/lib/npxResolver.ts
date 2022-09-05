@@ -5,10 +5,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import which from "which";
 
-import { mrmDebug } from "../index";
-import { printError } from "./console";
 import { promiseFirst } from "./promises";
-import { getPackageName } from "./utils";
+import { getPackageName, mrmDebug, printError } from "./utils";
 
 const NPX_RESOLVER_QUIET = true;
 
@@ -60,13 +58,13 @@ export async function resolveUsingNpx(packageName: string): Promise<string> {
 	const debug = mrmDebug.extend("npxResolver");
 	const npm = await which("npm");
 
-	debug(`npx._ensurePackages('%s')`, packageName);
+	debug(`ensure packages: %s`, kleur.bold().cyan(packageName));
 	const { prefix } = await npx._ensurePackages(packageName, {
 		npm,
 		q: NPX_RESOLVER_QUIET,
 	});
 
-	debug(`npx temp dir`, kleur.yellow(prefix));
+	debug(`temp dir: %s`, kleur.yellow(prefix));
 	const resolved = require.resolve(packageName, {
 		paths: [
 			path.join(prefix, "lib", "node_modules"),
@@ -74,13 +72,11 @@ export async function resolveUsingNpx(packageName: string): Promise<string> {
 		],
 	});
 
-	debug(`package: %s`, kleur.yellow(resolved));
-	debug(`resolved: %s`, kleur.yellow(resolved));
-
 	if (!resolved) {
 		throw Error(`npx failed resolving ${packageName}`);
 	}
 
-	debug(`+++ %s`, resolved);
+	debug(`resolved: %s`, kleur.yellow(resolved));
+
 	return resolved;
 }
