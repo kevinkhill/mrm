@@ -12,6 +12,7 @@
     ],
     "declaration": true,
     "sourceMap": true,
+    "noUnusedLocals": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "removeComments": true,

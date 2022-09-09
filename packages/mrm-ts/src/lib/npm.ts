@@ -1,10 +1,30 @@
-import { execa, ExecaReturnValue } from "execa";
 import kleur from "kleur";
+import { spawn, SpawnOptionsWithoutStdio } from "node:child_process";
 import { lstat } from "node:fs/promises";
 import path from "node:path";
 import which from "which";
 
 import { mrmDebug } from "./utils";
+
+async function npmAsync(
+	command: string[],
+	options?: SpawnOptionsWithoutStdio
+): Promise<string> {
+	const npm = await which("npm");
+
+	return new Promise((resolve, reject) => {
+		let data = "";
+		let error = "";
+		const process = spawn(npm, command, options);
+		process.stdout.on("data", stdout => (data += stdout.toString()));
+		process.stderr.on("data", stderr => (error += stderr.toString()));
+		process.on("error", err => reject(err));
+		process.on("close", code => {
+			code !== 0 ? reject(error) : resolve(data);
+			process.stdin.end();
+		});
+	});
+}
 
 /**
  * Run an `npm` command in a directory
@@ -12,15 +32,13 @@ import { mrmDebug } from "./utils";
 export async function npmCommand(
 	command: string[],
 	cwd: string
-): Promise<ExecaReturnValue<string>> {
+): Promise<string> {
 	const debug = mrmDebug.extend("npmCommand");
-
-	const npm = await which("npm");
 
 	debug("entering: %s", cwd);
 	debug("command: %s", command);
 
-	return await execa(npm, command, { cwd });
+	return await npmAsync(command, { cwd });
 }
 
 /**
@@ -41,8 +59,7 @@ export async function installWithNpm(
 	debug("entering: %s", kleur.yellow(resolvedDir));
 
 	try {
-		const npm = await which("npm");
-		const { stdout } = await execa(npm, ["install", pkgSpec], { cwd });
+		const stdout = await npmAsync(["install", pkgSpec], { cwd });
 		debug(stdout);
 		return resolvedDir;
 	} catch (_) {

@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-"use strict";
 var __create = Object.create;
 var __defProp = Object.defineProperty;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
@@ -7,12 +6,15 @@ var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __commonJS = (cb, mod) => function __require() {
+var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
+  get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
+}) : x)(function(x) {
+  if (typeof require !== "undefined")
+    return require.apply(this, arguments);
+  throw new Error('Dynamic require of "' + x + '" is not supported');
+});
+var __commonJS = (cb, mod) => function __require2() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-};
-var __export = (target, all) => {
-  for (var name in all)
-    __defProp(target, name, { get: all[name], enumerable: true });
 };
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
@@ -26,7 +28,6 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
   mod
 ));
-var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 var __publicField = (obj, key, value) => {
   __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
   return value;
@@ -34,8 +35,8 @@ var __publicField = (obj, key, value) => {
 
 // package.json
 var require_package = __commonJS({
-  "package.json"(exports, module2) {
-    module2.exports = {
+  "package.json"(exports, module) {
+    module.exports = {
       name: "mrm-ts",
       version: "4.0.0",
       description: "Codemods for your project config files",
@@ -127,24 +128,19 @@ var require_package = __commonJS({
 });
 
 // src/cli.ts
-var cli_exports = {};
-__export(cli_exports, {
-  mrm: () => mrm
-});
-module.exports = __toCommonJS(cli_exports);
-var import_kleur9 = __toESM(require("kleur"));
-var import_middleearth_names = require("middleearth-names");
-var import_minimist = __toESM(require("minimist"));
-var import_update_notifier = __toESM(require("update-notifier"));
 var import_package = __toESM(require_package());
+import kleur9 from "kleur";
+import { random } from "middleearth-names";
+import minimist from "minimist";
+import updateNotifier from "update-notifier";
 
 // src/constants.ts
-var import_env_paths = __toESM(require("env-paths"));
-var import_kleur = __toESM(require("kleur"));
+import envPaths from "env-paths";
+import kleur from "kleur";
 var NPX_RESOLVER_QUIET = true;
-var PREFIX = `[${import_kleur.default.cyan("mrm")}]`;
+var PREFIX = `[${kleur.cyan("mrm")}]`;
 var CONFIG_FILENAME = "config.json";
-var TASK_CACHE_DIR = (0, import_env_paths.default)("mrm", { suffix: "tasks" }).cache;
+var TASK_CACHE_DIR = envPaths("mrm", { suffix: "tasks" }).cache;
 var EXAMPLES = [
   ["", "", "List of available tasks"],
   ["<task>", "", "Run a task or an alias"],
@@ -158,16 +154,15 @@ var EXAMPLES = [
 ];
 
 // src/lib/config.ts
-var import_promises3 = require("fs/promises");
-var import_kleur3 = __toESM(require("kleur"));
+import { readFile } from "fs/promises";
+import kleur3 from "kleur";
 
 // src/lib/utils.ts
-var import_debug = __toESM(require("debug"));
-var import_fs = __toESM(require("fs"));
-var import_kleur2 = __toESM(require("kleur"));
-var import_node_fs = require("fs");
-var import_promises = require("fs/promises");
-var import_node_path = __toESM(require("path"));
+import Debug from "debug";
+import fs from "fs";
+import kleur2 from "kleur";
+import { lstatSync } from "fs";
+import path from "path";
 
 // src/lib/promises.ts
 async function promiseSeries(array, fn) {
@@ -194,17 +189,17 @@ ${errors.join("\n")}`);
 }
 
 // src/lib/utils.ts
-var mrmDebug = (0, import_debug.default)("mrm");
+var mrmDebug = Debug("mrm");
 function longest(input) {
   return input.reduce((a, b) => a.length > b.length ? a : b, "");
 }
 function isDirSync(dir) {
-  const stat = (0, import_node_fs.lstatSync)(import_node_path.default.resolve(dir));
+  const stat = lstatSync(path.resolve(dir));
   return stat.isDirectory();
 }
 function printError(message) {
   console.log();
-  console.error(import_kleur2.default.bold().red(message));
+  console.error(kleur2.bold().red(message));
   console.log();
 }
 function getPackageName(type, packageName) {
@@ -219,15 +214,15 @@ function toNaturalList(list, separator = ", ", finalWord = "and") {
 }
 async function tryFile(filename, directories) {
   const debug3 = mrmDebug.extend("tryFile");
-  debug3("trying for %s", import_kleur2.default.cyan(filename));
+  debug3("trying for %s", kleur2.cyan(filename));
   try {
     return promiseFirst(
       directories.map((dir) => {
-        const filepath = import_node_path.default.resolve(dir, filename);
+        const filepath = path.resolve(dir, filename);
         return async function() {
-          debug3("entering: %s", import_kleur2.default.yellow(dir));
-          await import_fs.default.promises.access(filepath);
-          debug3(" | %s", import_kleur2.default.green(filepath));
+          debug3("entering: %s", kleur2.yellow(dir));
+          await fs.promises.access(filepath);
+          debug3(" | %s", kleur2.green(filepath));
           return filepath;
         };
       })
@@ -250,8 +245,8 @@ async function getConfig(directories, argv) {
 async function getConfigFromFile(directories) {
   try {
     const filepath = await tryFile(CONFIG_FILENAME, directories);
-    debug("found: %s", import_kleur3.default.green(filepath));
-    return JSON.parse(await (0, import_promises3.readFile)(filepath, "utf8"));
+    debug("found: %s", kleur3.green(filepath));
+    return JSON.parse(await readFile(filepath, "utf8"));
   } catch (err) {
     return {};
   }
@@ -324,46 +319,43 @@ function isUndefinedOptionError(err) {
 }
 
 // src/lib/npm.ts
-var import_kleur4 = __toESM(require("kleur"));
-var import_node_child_process = require("child_process");
-var import_promises4 = require("fs/promises");
-var import_node_path2 = __toESM(require("path"));
-var import_which = __toESM(require("which"));
+import kleur4 from "kleur";
+import which from "which";
 
 // src/lib/npxResolver.ts
-var import_kleur5 = __toESM(require("kleur"));
-var import_libnpx = __toESM(require("libnpx"));
-var import_node_path3 = __toESM(require("path"));
-var import_which2 = __toESM(require("which"));
+import kleur5 from "kleur";
+import npx from "libnpx";
+import path2 from "path";
+import which2 from "which";
 async function resolveUsingNpx(packageName) {
   const debug3 = mrmDebug.extend("npxResolver");
-  const npm = await (0, import_which2.default)("npm");
-  debug3(`ensure packages: %s`, import_kleur5.default.bold().cyan(packageName));
-  const { prefix } = await import_libnpx.default._ensurePackages(packageName, {
+  const npm = await which2("npm");
+  debug3(`ensure packages: %s`, kleur5.bold().cyan(packageName));
+  const { prefix } = await npx._ensurePackages(packageName, {
     npm,
     q: NPX_RESOLVER_QUIET
   });
-  debug3(`temp dir: %s`, import_kleur5.default.yellow(prefix));
-  const resolved = require.resolve(packageName, {
+  debug3(`temp dir: %s`, kleur5.yellow(prefix));
+  const resolved = __require.resolve(packageName, {
     paths: [
-      import_node_path3.default.join(prefix, "lib", "node_modules"),
-      import_node_path3.default.join(prefix, "lib64", "node_modules")
+      path2.join(prefix, "lib", "node_modules"),
+      path2.join(prefix, "lib64", "node_modules")
     ]
   });
   if (!resolved) {
     throw Error(`npx failed resolving ${packageName}`);
   }
-  debug3(`resolved: %s`, import_kleur5.default.yellow(resolved));
+  debug3(`resolved: %s`, kleur5.yellow(resolved));
   return resolved;
 }
 
 // src/lib/resolveDirectories.ts
-var import_promises5 = require("fs/promises");
-var import_node_path4 = __toESM(require("path"));
+import { lstat } from "fs/promises";
+import path3 from "path";
 async function resolveDirectories(paths, preset, customDir) {
   if (customDir) {
-    const resolvedDir = import_node_path4.default.resolve(customDir);
-    const stat = await (0, import_promises5.lstat)(resolvedDir);
+    const resolvedDir = path3.resolve(customDir);
+    const stat = await lstat(resolvedDir);
     if (stat.isDirectory()) {
       printError(`Directory "${resolvedDir}" not found.`);
       process.exit(1);
@@ -373,12 +365,12 @@ async function resolveDirectories(paths, preset, customDir) {
   const presetPackageName = getPackageName("preset", preset);
   try {
     const presetPath = await promiseFirst([
-      () => require.resolve(presetPackageName),
-      () => require.resolve(preset),
+      () => __require.resolve(presetPackageName),
+      () => __require.resolve(preset),
       () => resolveUsingNpx(presetPackageName),
       () => resolveUsingNpx(preset)
     ]);
-    return [...paths, import_node_path4.default.dirname(presetPath)];
+    return [...paths, path3.dirname(presetPath)];
   } catch {
     printError(`Preset "${preset}" not found.
 
@@ -388,22 +380,21 @@ We've tried to load "${presetPackageName}" and "${preset}" npm packages.`);
 }
 
 // src/lib/taskCollector.ts
-var import_glob = __toESM(require("glob"));
-var import_kleur6 = __toESM(require("kleur"));
-var import_node_path5 = __toESM(require("path"));
+import glob from "glob";
+import kleur6 from "kleur";
 
 // src/lib/taskRunner.ts
-var import_inquirer = __toESM(require("inquirer"));
-var import_kleur7 = __toESM(require("kleur"));
+import inquirer from "inquirer";
+import kleur7 from "kleur";
 var debug2 = mrmDebug.extend("taskRunner");
 
 // src/TaskStore.ts
-var import_glob2 = __toESM(require("glob"));
-var import_inquirer2 = __toESM(require("inquirer"));
-var import_kleur8 = __toESM(require("kleur"));
-var mrmCore = __toESM(require("mrm-core"));
-var import_node_os = require("os");
-var import_node_path6 = __toESM(require("path"));
+import glob2 from "glob";
+import inquirer2 from "inquirer";
+import kleur8 from "kleur";
+import * as mrmCore from "mrm-core";
+import { homedir } from "os";
+import path4 from "path";
 var _TaskStore = class {
   preset = "default";
   initialized = false;
@@ -463,16 +454,16 @@ var _TaskStore = class {
     const allTasks = this.aliases;
     this._debug("PATH: %O", this.PATH);
     for (const dir of this.PATH) {
-      this._debug("entering: %s", import_kleur8.default.yellow(dir));
-      const tasks = import_glob2.default.sync(`${dir}/*/index.js`);
+      this._debug("entering: %s", kleur8.yellow(dir));
+      const tasks = glob2.sync(`${dir}/*/index.js`);
       console.error(tasks);
-      this._debug("\\ task count: %s", import_kleur8.default.yellow(tasks.length));
+      this._debug("\\ task count: %s", kleur8.yellow(tasks.length));
       for (const filename of tasks) {
-        const taskName = import_node_path6.default.basename(import_node_path6.default.dirname(filename));
-        this._debug(" | %s", import_kleur8.default.green(taskName));
+        const taskName = path4.basename(path4.dirname(filename));
+        this._debug(" | %s", kleur8.green(taskName));
         if (!allTasks[taskName]) {
-          const module2 = await import(filename);
-          allTasks[taskName] = module2.description || "";
+          const module = await import(filename);
+          allTasks[taskName] = module.description || "";
         }
       }
     }
@@ -500,33 +491,33 @@ var _TaskStore = class {
     }
     const aliasedTasks = this.aliases[aliasName];
     if (!this._argv.silent || !this._debug.enabled) {
-      console.log(import_kleur8.default.yellow(`Running alias ${aliasName}...`));
+      console.log(kleur8.yellow(`Running alias ${aliasName}...`));
     }
-    this._debug("running alias: %s", import_kleur8.default.bgMagenta().white(aliasName));
+    this._debug("running alias: %s", kleur8.bgMagenta().white(aliasName));
     this._debug("mapped tasks: %O", aliasedTasks);
     return await this.run(aliasedTasks);
   }
   async runTask(taskName) {
-    this._debug("running task: %s", import_kleur8.default.bgBlue().white(taskName));
+    this._debug("running task: %s", kleur8.bgBlue().white(taskName));
     const modulePath = await this.resolveTask(taskName);
     if (!modulePath) {
       throw new MrmUnknownTask(`Task "${taskName}" not found.`, {
         taskName
       });
     }
-    const module2 = (await import(modulePath)).default;
-    if (typeof module2 !== "function") {
+    const module = (await import(modulePath)).default;
+    if (typeof module !== "function") {
       throw new MrmInvalidTask(`Cannot call task "${taskName}".`, { taskName });
     }
     if (!this._argv.silent || !this._debug.enabled) {
-      console.log(import_kleur8.default.cyan(`Running ${taskName}...`));
+      console.log(kleur8.cyan(`Running ${taskName}...`));
     }
-    const config = await this.getTaskOptions(module2, this._argv.interactive);
+    const config = await this.getTaskOptions(module, this._argv.interactive);
     if (this._argv["examine"]) {
-      console.log(import_kleur8.default.underline(`
+      console.log(kleur8.underline(`
 Details for Task "${taskName}"`));
       console.log(`
-Module: `, String(module2));
+Module: `, String(module));
       console.log(`
 Config: `, config);
       console.log(`
@@ -534,9 +525,9 @@ CLI Args: `, this._argv);
       return;
     } else {
       if (this._argv["useNewTaskSignature"]) {
-        return module2({ config, argv: this._argv, mrmCore });
+        return module({ config, argv: this._argv, mrmCore });
       } else {
-        return module2(config, this._argv);
+        return module(config, this._argv);
       }
     }
   }
@@ -568,7 +559,7 @@ CLI Args: `, this._argv);
         }
       );
     }
-    const answers = prompts.length > 0 ? await import_inquirer2.default.prompt(prompts) : {};
+    const answers = prompts.length > 0 ? await inquirer2.prompt(prompts) : {};
     const values = { ...answers };
     for (const param of statics) {
       values[param.name] = param.default;
@@ -590,7 +581,7 @@ CLI Args: `, this._argv);
         },
         () => {
           tracer(`require.resolve(%s)`, taskPackageName);
-          return require.resolve(taskPackageName);
+          return __require.resolve(taskPackageName);
         },
         () => {
           tracer(`resolveUsingNpx(%s)`, taskPackageName);
@@ -598,7 +589,7 @@ CLI Args: `, this._argv);
         },
         () => {
           tracer(`require.resolve(%s)`, taskName);
-          return require.resolve(taskName);
+          return __require.resolve(taskName);
         },
         () => {
           tracer(`resolveUsingNpx(%s)`, taskName);
@@ -612,8 +603,8 @@ CLI Args: `, this._argv);
 };
 var TaskStore = _TaskStore;
 __publicField(TaskStore, "DEFAULT_DIRECTORIES", [
-  import_node_path6.default.resolve((0, import_node_os.homedir)(), "dotfiles/mrm"),
-  import_node_path6.default.resolve((0, import_node_os.homedir)(), ".mrm")
+  path4.resolve(homedir(), "dotfiles/mrm"),
+  path4.resolve(homedir(), ".mrm")
 ]);
 
 // src/cli.ts
@@ -621,7 +612,7 @@ var cliDebug = mrmDebug.extend("CLI");
 var loadingDotsInterval;
 async function mrm() {
   const debug3 = cliDebug;
-  const argv = (0, import_minimist.default)(process.argv.slice(2), {
+  const argv = minimist(process.argv.slice(2), {
     alias: {
       i: "interactive"
     },
@@ -645,16 +636,16 @@ async function mrm() {
   MrmTasks.mergeOptions(options);
   if (!mrmDebug.enabled && !argv.silent) {
     clearInterval(loadingDotsInterval);
-    console.log(import_kleur9.default.green("done"));
+    console.log(kleur9.green("done"));
   }
   if (argv["dump"]) {
-    console.log("\n", import_kleur9.default.yellow().underline("Options"), "\n");
+    console.log("\n", kleur9.yellow().underline("Options"), "\n");
     console.log(MrmTasks);
     return;
   }
   if (tasks.length === 0 || tasks[0] === "help") {
     if (!argv.silent) {
-      console.log(PREFIX, import_kleur9.default.yellow("No tasks to run"));
+      console.log(PREFIX, kleur9.yellow("No tasks to run"));
     }
     commandHelp(binaryName, await MrmTasks.getAllTasks());
     return;
@@ -690,7 +681,7 @@ Note that when a preset is specified no default search locations are used.`);
 Make sure your task module exports a function.`);
     } else if (isUndefinedOptionError(err)) {
       const { unknown } = err.extra;
-      const values = unknown.map((name) => [name, (0, import_middleearth_names.random)()]);
+      const values = unknown.map((name) => [name, random()]);
       const configList = toNaturalList(unknown);
       const heading = `Required config options are missed: ${configList}.`;
       const cliHelp = `  ${binaryName} ${tasks.join(" ")} ${values.map(([n, v]) => `--config:${n} "${v}"`).join(" ")}`;
@@ -730,9 +721,9 @@ function commandHelp(binaryName, allTasks) {
   console.log("\n");
   console.log(
     [
-      import_kleur9.default.underline("Usage"),
+      kleur9.underline("Usage"),
       getUsage(binaryName, EXAMPLES),
-      import_kleur9.default.underline("Available tasks"),
+      kleur9.underline("Available tasks"),
       buildTasksList(allTasks)
     ].join("\n\n")
   );
@@ -744,9 +735,9 @@ function getUsage(binaryName, examples) {
   return examples.map(
     ([command, opts, description]) => [
       "   ",
-      import_kleur9.default.bold(binaryName),
-      import_kleur9.default.cyan(command),
-      import_kleur9.default.yellow(opts),
+      kleur9.bold(binaryName),
+      kleur9.cyan(command),
+      kleur9.yellow(opts),
       "".padEnd(commandsWidth - (command + opts).length),
       description && `# ${description}`
     ].join(" ")
@@ -757,7 +748,7 @@ function buildTasksList(allTasks) {
   const nameColWidth = names.length > 0 ? longest(names).length : 0;
   return names.map((name) => {
     const description = Array.isArray(allTasks[name]) ? `Runs ${toNaturalList(allTasks[name])}` : allTasks[name];
-    return "    " + import_kleur9.default.cyan(name.padEnd(nameColWidth)) + "  " + description;
+    return "    " + kleur9.cyan(name.padEnd(nameColWidth)) + "  " + description;
   }).join("\n");
 }
 process.on("unhandledRejection", (err) => {
@@ -766,15 +757,14 @@ process.on("unhandledRejection", (err) => {
   printError(err.message);
   process.exit(1);
 });
-var notifier = (0, import_update_notifier.default)({ pkg: import_package.default });
+var notifier = updateNotifier({ pkg: import_package.default });
 var _a;
 cliDebug("current pkg version: %s", (_a = notifier.update) == null ? void 0 : _a.current);
 var _a2;
 cliDebug("latest pkg version: %s", (_a2 = notifier.update) == null ? void 0 : _a2.latest);
 notifier.notify();
 mrm();
-// Annotate the CommonJS export names for ESM import in node:
-0 && (module.exports = {
+export {
   mrm
-});
-//# sourceMappingURL=cli.js.map
+};
+//# sourceMappingURL=cli.mjs.map

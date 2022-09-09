@@ -93,10 +93,9 @@ export async function tryFile(
 	try {
 		return promiseFirst(
 			directories.map(dir => {
-				debug("entering: %s", kleur.yellow(dir));
 				const filepath = path.resolve(dir, filename);
-
-				return async (): Promise<string> => {
+				return async function (): Promise<string> {
+					debug("entering: %s", kleur.yellow(dir));
 					await fs.promises.access(filepath);
 					debug(" | %s", kleur.green(filepath));
 					return filepath;

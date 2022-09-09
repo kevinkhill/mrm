@@ -5,7 +5,7 @@ import { CONFIG_FILENAME } from "../constants";
 import type { CliArgs, MrmOptions } from "../types/mrm";
 import { mrmDebug, tryFile } from "./utils";
 
-const debug = mrmDebug.extend("config");
+const debug = mrmDebug.extend("ConfigLoader");
 
 /**
  * Load the configuration from file and command line

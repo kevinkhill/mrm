@@ -18,7 +18,10 @@ declare module "middleearth-names" {
 declare module "libnpx" {
 	export function _localBinPath(cwd);
 	export function _getEnv(opts);
-	export function _ensurePackages(package: string, opts): { prefix: string };
+	export async function _ensurePackages(
+		package: string,
+		opts
+	): Promise<{ prefix: string }>;
 	export function _getExistingPath(command, opts);
 	export function _getNpmCache(opts);
 	export function _buildArgs(specs, prefix, opts);

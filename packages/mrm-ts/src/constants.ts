@@ -1,6 +1,8 @@
 import envPaths from "env-paths";
 import kleur from "kleur";
 
+export const NPX_RESOLVER_QUIET = true;
+
 export const PREFIX = `[${kleur.cyan("mrm")}]`;
 
 /**

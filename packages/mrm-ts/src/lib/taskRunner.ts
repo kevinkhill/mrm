@@ -1,5 +1,6 @@
 import inquirer from "inquirer";
 import kleur from "kleur";
+import { createRequire } from "node:module";
 
 import type { CliArgs, MrmOptions, MrmTask } from "../types/mrm";
 import {
@@ -74,6 +75,8 @@ async function runTask(
 	debug("running task: %s", kleur.bgBlue().white(taskName));
 
 	const taskPackageName = getPackageName("task", taskName);
+
+	// const require = createRequire(import.meta.url);
 	const modulePath = await promiseFirst([
 		() => tryFile(`${taskName}/index.js`, directories),
 		() => require.resolve(taskPackageName),

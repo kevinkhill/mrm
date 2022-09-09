@@ -4,15 +4,8 @@ import { createRequire } from "node:module";
 import path from "node:path";
 import which from "which";
 
+import { NPX_RESOLVER_QUIET } from "../constants";
 import { mrmDebug } from "./utils";
-
-const NPX_RESOLVER_QUIET = true;
-
-/**
- * Return the functionality of `require` from commonjs
- * @TODO remove this
- */
-export const require = createRequire(import.meta.url);
 
 /**
  * Resolve a module on-the-fly using npx under the hood
@@ -28,6 +21,8 @@ export async function resolveUsingNpx(packageName: string): Promise<string> {
 	});
 
 	debug(`temp dir: %s`, kleur.yellow(prefix));
+
+	// const require = createRequire(import.meta.url);
 	const resolved = require.resolve(packageName, {
 		paths: [
 			path.join(prefix, "lib", "node_modules"),

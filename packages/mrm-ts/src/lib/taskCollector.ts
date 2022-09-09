@@ -21,6 +21,7 @@ export async function getAllTasks(
 		debug("entering: %s", kleur.yellow(dir));
 
 		const tasks = glob.sync(`${dir}/*/index.js`);
+		console.error(tasks);
 
 		debug("\\ task count: %s", kleur.yellow(tasks.length));
 

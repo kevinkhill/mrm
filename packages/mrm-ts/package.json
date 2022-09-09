@@ -26,7 +26,7 @@
     "url": "https://github.com/kevinkhill"
   },
   "scripts": {
-    "build": "tsup --format cjs --legacy-output",
+    "build": "tsup --format cjs,esm",
     "cli": "tsx ./src/cli.ts",
     "prestart": "npm run build",
     "start": "node bin/mrm.js",
@@ -34,7 +34,7 @@
     "view-config": "tsx ./src/cli.ts --options"
   },
   "type": "commonjs",
-  "main": "dist/index.js",
+  "main": "dist/cli.js",
   "bin": {
     "mrm": "dist/cli.js"
   },
@@ -63,20 +63,24 @@
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
+    "@types/glob": "^8.0.0",
     "@types/inquirer": "^9.0.1",
     "@types/jest": "^28.1.7",
+    "@types/minimist": "^1.2.2",
     "@types/node": "^18.7.14",
     "@types/update-notifier": "^6.0.1",
     "@types/which": "^2.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.36.0",
+    "@typescript-eslint/eslint-plugin": "^5.36.2",
     "@typescript-eslint/parser": "^5.36.0",
     "eslint": "^8.23.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-import": "^2.26.0",
     "eslint-plugin-prettier": "^4.2.1",
     "eslint-plugin-simple-import-sort": "^7.0.0",
+    "prettier": "^2.7.1",
     "tsup": "^6.2.3",
-    "tsx": "^3.9.0"
+    "tsx": "^3.9.0",
+    "typescript": "^4.8.2"
   },
   "engines": {
     "node": ">=14.16"

@@ -8,7 +8,6 @@ import updateNotifier from "update-notifier";
 import packageJson from "../package.json";
 import { CONFIG_FILENAME, EXAMPLES, PREFIX } from "./constants";
 import {
-	getAllTasks,
 	getConfig,
 	isInvalidTaskError,
 	isUndefinedOptionError,
@@ -17,30 +16,31 @@ import {
 	longest,
 	mrmDebug,
 	printError,
-	resolveDirectories,
-	run,
 	toNaturalList,
 } from "./lib";
 import { TaskStore } from "./TaskStore";
 import type { CliArgs, TaskRecords } from "./types/mrm";
 
-const cliDebug = mrmDebug.extend("cli");
+const cliDebug = mrmDebug.extend("CLI");
 
 let loadingDotsInterval: NodeJS.Timer;
 
 /**
  * mrm, the cli tool
  */
-async function main() {
+export async function mrm() {
 	const debug = cliDebug;
 	const argv = minimist(process.argv.slice(2), {
 		alias: {
 			i: "interactive",
 		},
-		boolean: ["silent", "options", "dry-run"],
+		boolean: ["silent", "dump", "dry-run", "examine", "useNewTaskSignature"],
 	}) as CliArgs;
 
-	debug("argv = %O", argv);
+	debug("argv: %O", argv);
+
+	// Create a new instance of the TaskStore and initialize it.
+	const MrmTasks = new TaskStore(argv);
 
 	// Collect positional args as tasks to run
 	const tasks = argv._;
@@ -52,7 +52,6 @@ async function main() {
 
 	// Preset
 	const preset = argv.preset || "default";
-	const isDefaultPreset = preset === "default";
 
 	// Show shome loading dots while we wait.
 	if (!mrmDebug.enabled && !argv.silent) {
@@ -62,17 +61,13 @@ async function main() {
 		}, 1000);
 	}
 
-	// search for the default preset in the default directories
-	const directories = await resolveDirectories(
-		TaskStore.DEFAULT_DIRECTORIES,
-		preset,
-		argv.dir
-	);
-	debug("resolved directories: %O", directories);
+	await MrmTasks.initStore();
 
 	// Gather options from the directories
-	const options = await getConfig(directories, argv);
+	const options = await getConfig(MrmTasks.PATH, argv);
 	debug("options: %O", options);
+
+	MrmTasks.mergeOptions(options);
 
 	// Now that we are loaded, kill the dots timer.
 	if (!mrmDebug.enabled && !argv.silent) {
@@ -80,12 +75,9 @@ async function main() {
 		console.log(kleur.green("done"));
 	}
 
-	/**
-	 * If called `--options`, dump them to the console and exit.
-	 */
-	if (argv["options"]) {
+	if (argv["dump"]) {
 		console.log("\n", kleur.yellow().underline("Options"), "\n");
-		console.log(options);
+		console.log(MrmTasks);
 		return;
 	}
 
@@ -99,21 +91,21 @@ async function main() {
 		}
 
 		// Gather all the tasks from the directories
-		const allTasks = await getAllTasks(directories, options);
-		commandHelp(binaryName, allTasks);
+		commandHelp(binaryName, await MrmTasks.getAllTasks());
 		return;
 	}
 
+	// Let's run some tasks!
 	try {
-		await run(tasks, directories, options, argv);
+		await MrmTasks.run(tasks);
 	} catch (err: unknown) {
 		if (isUnknownAliasError(err)) {
 			printError(err.message);
 		} else if (isUnknownTaskError(err)) {
 			const { taskName } = err.extra;
-			if (isDefaultPreset) {
-				const modules = directories
-					.slice(0, -1)
+
+			if (MrmTasks.isDefaultPreset) {
+				const modules = MrmTasks.PATH.slice(0, -1)
 					.map(d => `${d}/${taskName}/index.js`)
 					.concat([
 						`"${taskName}" in the default mrm tasks`,
@@ -144,8 +136,9 @@ Make sure your task module exports a function.`);
 			const cliHelp = `  ${binaryName} ${tasks.join(" ")} ${values
 				.map(([n, v]) => `--config:${n} "${v}"`)
 				.join(" ")}`;
-			if (isDefaultPreset) {
-				const userDirectories = directories.slice(0, -1);
+
+			if (MrmTasks.isDefaultPreset) {
+				const userDirectories = MrmTasks.PATH.slice(0, -1);
 
 				printError(`${heading}
 
@@ -253,4 +246,4 @@ cliDebug("current pkg version: %s", notifier.update?.current);
 cliDebug("latest pkg version: %s", notifier.update?.latest);
 
 notifier.notify();
-main();
+mrm();

@@ -1,6 +1,9 @@
 import type { Debugger } from "debug";
+import glob from "glob";
 import inquirer from "inquirer";
 import kleur from "kleur";
+import * as mrmCore from "mrm-core";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import path from "node:path";
 
@@ -21,26 +24,37 @@ import {
 } from "./lib";
 import type { CliArgs, MrmOptions, MrmTask, TaskRecords } from "./types/mrm";
 
+// const require = createRequire(import.meta.url);
+
 export class TaskStore {
+	preset = "default";
 	initialized = false;
 
-	private _argv: CliArgs;
-	private _debug: Debugger;
-	private _directories: string[] = [];
-	private _options: Partial<MrmOptions> = {};
+	get PATH(): string[] {
+		return this._directories;
+	}
+
+	get options() {
+		return this._options;
+	}
+
+	get aliases(): TaskRecords {
+		return this._options.aliases ?? {};
+	}
+
+	get isDefaultPreset(): boolean {
+		return this.preset === "default";
+	}
 
 	static DEFAULT_DIRECTORIES = [
 		path.resolve(homedir(), "dotfiles/mrm"),
 		path.resolve(homedir(), ".mrm"),
 	];
 
-	get PATH(): string[] {
-		return this._directories;
-	}
-
-	get aliases(): TaskRecords {
-		return this._options.aliases ?? {};
-	}
+	private _argv: CliArgs;
+	private _debug: Debugger;
+	private _directories: string[] = [];
+	private _options: Partial<MrmOptions> = {};
 
 	/**
 	 * Build a new instance of the TaskStore
@@ -50,13 +64,20 @@ export class TaskStore {
 
 		this._argv = argv;
 		this._options = options ?? {};
+
+		const { preset } = this._argv;
+
+		if (preset) {
+			this._debug("activating preset: %s", preset);
+			this.preset = preset;
+		}
 	}
 
 	/**
 	 * This needs to be called before the store is used, otherwise npx will
 	 * not have a chance to ensure the default preset is available.
 	 */
-	async initStore(directories: string[]): Promise<void> {
+	async initStore(directories?: string[]): Promise<void> {
 		this._directories = await resolveDirectories(
 			directories ?? TaskStore.DEFAULT_DIRECTORIES,
 			"default",
@@ -66,15 +87,21 @@ export class TaskStore {
 	}
 
 	/**
-	 * Add a new directory to the search path.
+	 * Add a new directory to the search PATH.
 	 */
 	addDirToPath(dir: string) {
 		if (!isDirSync(dir)) {
 			throw new MrmPathNotExist(`Could not resolve the given path: ${dir}`);
 		}
-
 		this._directories.push(dir);
 	}
+
+	/**
+	 * Try to find a file in the PATH.
+	 */
+	// async find(filename: string): Promise<string> {
+	// 	return await tryFile(filename, this.PATH);
+	// }
 
 	setOption(option: string, value: unknown) {
 		this._options[option] = value;
@@ -89,6 +116,37 @@ export class TaskStore {
 			...this._options,
 			...options,
 		};
+	}
+
+	/**
+	 * Gather all of the available tasks from the tasks PATH.
+	 */
+	async getAllTasks(): Promise<TaskRecords> {
+		const allTasks: TaskRecords = this.aliases;
+
+		this._debug("PATH: %O", this.PATH);
+
+		for (const dir of this.PATH) {
+			this._debug("entering: %s", kleur.yellow(dir));
+
+			const tasks = glob.sync(`${dir}/*/index.js`);
+			console.error(tasks);
+
+			this._debug("\\ task count: %s", kleur.yellow(tasks.length));
+
+			for (const filename of tasks) {
+				const taskName = path.basename(path.dirname(filename));
+
+				this._debug(" | %s", kleur.green(taskName));
+
+				if (!allTasks[taskName]) {
+					const module = await import(filename);
+					allTasks[taskName] = module.description || "";
+				}
+			}
+		}
+
+		return allTasks;
 	}
 
 	/**
@@ -142,14 +200,7 @@ export class TaskStore {
 	async runTask(taskName: string): Promise<unknown> {
 		this._debug("running task: %s", kleur.bgBlue().white(taskName));
 
-		const taskPackageName = getPackageName("task", taskName);
-		const modulePath = await promiseFirst([
-			() => tryFile(`${taskName}/index.js`, this.PATH),
-			() => require.resolve(taskPackageName),
-			() => resolveUsingNpx(taskPackageName),
-			() => require.resolve(taskName),
-			() => resolveUsingNpx(taskName),
-		]);
+		const modulePath = await this.resolveTask(taskName);
 
 		if (!modulePath) {
 			throw new MrmUnknownTask(`Task "${taskName}" not found.`, {
@@ -159,8 +210,6 @@ export class TaskStore {
 
 		// replacing require()
 		const module = (await import(modulePath)).default as MrmTask;
-
-		this._debug("imported: %O", module);
 
 		if (typeof module !== "function") {
 			throw new MrmInvalidTask(`Cannot call task "${taskName}".`, { taskName });
@@ -172,19 +221,22 @@ export class TaskStore {
 
 		// Gather the task's options
 		const config = await this.getTaskOptions(module, this._argv.interactive);
-		this._debug("task config: %O", config);
 
-		// Run the task
-		if (this._argv["dry-run"]) {
-			console.log("\n");
-			console.log(kleur.underline(`Task: "${taskName}"`));
-			console.log("\n");
-			console.log(`Task Module: `, module);
-			console.log(`MRM Config: `, config);
-			console.log(`CLI Args: `, this._argv);
+		if (this._argv["examine"]) {
+			// Dump details if inspecting
+			console.log(kleur.underline(`\nDetails for Task "${taskName}"`));
+			console.log(`\nModule: `, String(module));
+			console.log(`\nConfig: `, config);
+			console.log(`\nCLI Args: `, this._argv);
 			return;
 		} else {
-			return module(config, this._argv);
+			if (this._argv["useNewTaskSignature"]) {
+				// Run the task, now with `mrm-core` injected to the task
+				return module({ config, argv: this._argv, mrmCore });
+			} else {
+				// The original method of calling tasks
+				return module(config, this._argv);
+			}
 		}
 	}
 
@@ -249,5 +301,68 @@ export class TaskStore {
 		}
 
 		return values;
+	}
+
+	// async *getFiles(dir: string): AsyncGenerator<string> {
+	// 	const dirents = await readdir(dir, { withFileTypes: true });
+	// 	for (const dirent of dirents) {
+	// 		const res = resolve(dir, dirent.name);
+	// 		if (dirent.isDirectory()) {
+	// 			yield* this.getFiles(res);
+	// 		} else {
+	// 			yield res;
+	// 		}
+	// 	}
+	// }
+
+	/**
+	 * @TODO [feat] Queue tasks to run?
+	 */
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	queueTasks(task: string | string[]) {
+		//
+	}
+
+	/**
+	 * @TODO [feat] Queue tasks to run?
+	 */
+	async runTaskQueue() {
+		//
+	}
+
+	/**
+	 * Given a task name, try to resolve with all available methods.
+	 */
+	private async resolveTask(taskName: string): Promise<null | string> {
+		const tracer = this._debug.extend("resolveTask");
+
+		const taskPackageName = getPackageName("task", taskName);
+
+		try {
+			return await promiseFirst([
+				() => {
+					tracer("tryFile(%s)", taskName);
+					return tryFile(`${taskName}/index.js`, this.PATH);
+				},
+				() => {
+					tracer(`require.resolve(%s)`, taskPackageName);
+					return require.resolve(taskPackageName);
+				},
+				() => {
+					tracer(`resolveUsingNpx(%s)`, taskPackageName);
+					return resolveUsingNpx(taskPackageName);
+				},
+				() => {
+					tracer(`require.resolve(%s)`, taskName);
+					return require.resolve(taskName);
+				},
+				() => {
+					tracer(`resolveUsingNpx(%s)`, taskName);
+					return resolveUsingNpx(taskName);
+				},
+			]);
+		} catch {
+			return null;
+		}
 	}
 }
