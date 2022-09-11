@@ -37,9 +37,7 @@ export function isDirSync(dir: string): boolean {
  * Pretty Error messages
  */
 export function printError(message: string) {
-	console.log();
-	console.error(kleur.bold().red(message));
-	console.log();
+	console.error("\n", kleur.bold().red(message), "\n");
 }
 
 /**
@@ -94,6 +92,7 @@ export async function tryFile(
 		return promiseFirst(
 			directories.map(dir => {
 				const filepath = path.resolve(dir, filename);
+
 				return async function (): Promise<string> {
 					debug("entering: %s", kleur.yellow(dir));
 					await fs.promises.access(filepath);

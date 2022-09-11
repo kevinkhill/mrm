@@ -1,0 +1,11 @@
+import Debug from "debug";
+import type { MrmOptions } from "../types/mrm";
+export declare const mrmDebug: Debug.Debugger;
+export declare function longest(input: string[]): string;
+export declare function isDir(dir: string): Promise<boolean>;
+export declare function isDirSync(dir: string): boolean;
+export declare function printError(message: string): void;
+export declare function getAllAliases(options: MrmOptions): import("../types/mrm").TaskRecords;
+export declare function getPackageName(type: "task" | "preset", packageName: string): string;
+export declare function toNaturalList(list: string[], separator?: string, finalWord?: string): string;
+export declare function tryFile(filename: string, directories: string[]): Promise<string>;

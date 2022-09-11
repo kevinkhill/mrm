@@ -1,32 +1,33 @@
 {
-  "compilerOptions": {
-    "strict": true,
-    "module": "ESNext",
-    "target": "ESNext",
-    "rootDir": ".",
-    "outDir": "./build",
-    "moduleResolution": "node",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
-    "declaration": true,
-    "sourceMap": true,
-    "noUnusedLocals": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "removeComments": true,
-    "esModuleInterop": true,
-    "skipDefaultLibCheck": true,
-    "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true
-  },
-  "include": [
-    "package.json",
-    "tsup.config.ts",
-    "src/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+	"compilerOptions": {
+		"strict": true,
+		"module": "ESNext",
+		"target": "ESNext",
+		"rootDir": ".",
+		"outDir": "./build",
+		"moduleResolution": "node",
+		"lib": [
+			"DOM",
+			"ESNext"
+		],
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"sourceMap": true,
+		"noUnusedLocals": true,
+		"resolveJsonModule": true,
+		"skipLibCheck": true,
+		"removeComments": true,
+		"esModuleInterop": true,
+		"skipDefaultLibCheck": true,
+		"allowSyntheticDefaultImports": true,
+		"forceConsistentCasingInFileNames": true
+	},
+	"include": [
+		"package.json",
+		"tsup.config.ts",
+		"src/**/*.ts"
+	],
+	"exclude": [
+		"node_modules"
+	]
 }

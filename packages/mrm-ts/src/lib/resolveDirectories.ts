@@ -1,5 +1,4 @@
 import { lstat } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 
 import { resolveUsingNpx } from "./npxResolver";
@@ -27,7 +26,6 @@ export async function resolveDirectories(
 		paths.unshift(resolvedDir);
 	}
 
-	// const require = createRequire(import.meta.url);
 	const presetPackageName = getPackageName("preset", preset);
 	try {
 		const presetPath = await promiseFirst([

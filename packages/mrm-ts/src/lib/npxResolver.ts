@@ -1,6 +1,5 @@
 import kleur from "kleur";
 import npx from "libnpx";
-import { createRequire } from "node:module";
 import path from "node:path";
 import which from "which";
 
@@ -22,7 +21,6 @@ export async function resolveUsingNpx(packageName: string): Promise<string> {
 
 	debug(`temp dir: %s`, kleur.yellow(prefix));
 
-	// const require = createRequire(import.meta.url);
 	const resolved = require.resolve(packageName, {
 		paths: [
 			path.join(prefix, "lib", "node_modules"),

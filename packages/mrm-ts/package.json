@@ -1,88 +1,90 @@
 {
-  "name": "mrm-ts",
-  "version": "4.0.0",
-  "description": "Codemods for your project config files",
-  "keywords": [
-    "boilerplate",
-    "cli",
-    "codemod",
-    "command line",
-    "generate",
-    "generator",
-    "ini",
-    "json",
-    "markdown",
-    "runner",
-    "scaffold",
-    "task",
-    "template",
-    "tool",
-    "yaml"
-  ],
-  "license": "MIT",
-  "author": {
-    "name": "Kevin Hill",
-    "email": "kevinkhill@pm.me",
-    "url": "https://github.com/kevinkhill"
-  },
-  "scripts": {
-    "build": "tsup --format cjs,esm",
-    "cli": "tsx ./src/cli.ts",
-    "prestart": "npm run build",
-    "start": "node bin/mrm.js",
-    "debug": "DEBUG=mrm* tsx ./src/cli.ts",
-    "view-config": "tsx ./src/cli.ts --options"
-  },
-  "type": "commonjs",
-  "main": "dist/cli.js",
-  "bin": {
-    "mrm": "dist/cli.js"
-  },
-  "files": [
-    "bin",
-    "dist"
-  ],
-  "dependencies": {
-    "debug": "^4.3.4",
-    "degit": "^2.8.4",
-    "env-paths": "2.2.1",
-    "execa": "^6.1.0",
-    "glob": "^7.1.6",
-    "inquirer": "^7.0.4",
-    "kleur": "^3.0.3",
-    "libnpx": "^10.2.4",
-    "make-dir": "^3.1.0",
-    "middleearth-names": "^1.1.0",
-    "minimist": "^1.2.0",
-    "mrm-core": "^7.0.0",
-    "ora": "5.4.1",
-    "rimraf": "^3.0.2",
-    "semver-utils": "^1.1.4",
-    "update-notifier": "^4.1.0",
-    "which": "^2.0.2"
-  },
-  "devDependencies": {
-    "@types/debug": "^4.1.7",
-    "@types/glob": "^8.0.0",
-    "@types/inquirer": "^9.0.1",
-    "@types/jest": "^28.1.7",
-    "@types/minimist": "^1.2.2",
-    "@types/node": "^18.7.14",
-    "@types/update-notifier": "^6.0.1",
-    "@types/which": "^2.0.1",
-    "@typescript-eslint/eslint-plugin": "^5.36.2",
-    "@typescript-eslint/parser": "^5.36.0",
-    "eslint": "^8.23.0",
-    "eslint-config-prettier": "^8.5.0",
-    "eslint-plugin-import": "^2.26.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "eslint-plugin-simple-import-sort": "^7.0.0",
-    "prettier": "^2.7.1",
-    "tsup": "^6.2.3",
-    "tsx": "^3.9.0",
-    "typescript": "^4.8.2"
-  },
-  "engines": {
-    "node": ">=14.16"
-  }
+	"name": "mrm-ts",
+	"version": "4.0.0",
+	"description": "Codemods for your project config files",
+	"keywords": [
+		"boilerplate",
+		"cli",
+		"codemod",
+		"command line",
+		"generate",
+		"generator",
+		"ini",
+		"json",
+		"markdown",
+		"runner",
+		"scaffold",
+		"task",
+		"template",
+		"tool",
+		"yaml"
+	],
+	"license": "MIT",
+	"author": {
+		"name": "Kevin Hill",
+		"email": "kevinkhill@pm.me",
+		"url": "https://github.com/kevinkhill"
+	},
+	"scripts": {
+		"build": "tsup && tsc",
+		"cli": "tsx ./src/cli.ts",
+		"prestart": "npm run build",
+		"start": "node bin/mrm.js",
+		"debug": "DEBUG=mrm* tsx ./src/cli.ts",
+		"view-config": "tsx ./src/cli.ts --options"
+	},
+	"type": "commonjs",
+	"types": "./dist/index.d.ts",
+	"main": "./dist/index.js",
+	"bin": {
+		"mrm": "./bin/mrm.js"
+	},
+	"files": [
+		"bin",
+		"dist"
+	],
+	"dependencies": {
+		"debug": "^4.3.4",
+		"degit": "^2.8.4",
+		"env-paths": "2.2.1",
+		"execa": "^6.1.0",
+		"glob": "^7.1.6",
+		"inquirer": "^7.0.4",
+		"kleur": "^3.0.3",
+		"libnpx": "^10.2.4",
+		"make-dir": "^3.1.0",
+		"middleearth-names": "^1.1.0",
+		"minimist": "^1.2.0",
+		"mrm-core": "^7.0.0",
+		"ora": "5.4.1",
+		"rimraf": "^3.0.2",
+		"semver-utils": "^1.1.4",
+		"update-notifier": "^4.1.0",
+		"which": "^2.0.2"
+	},
+	"devDependencies": {
+		"@microsoft/api-extractor": "^7.30.0",
+		"@types/debug": "^4.1.7",
+		"@types/glob": "^8.0.0",
+		"@types/inquirer": "^9.0.1",
+		"@types/jest": "^28.1.7",
+		"@types/minimist": "^1.2.2",
+		"@types/node": "^18.7.14",
+		"@types/update-notifier": "^6.0.1",
+		"@types/which": "^2.0.1",
+		"@typescript-eslint/eslint-plugin": "^5.36.2",
+		"@typescript-eslint/parser": "^5.36.0",
+		"eslint": "^8.23.0",
+		"eslint-config-prettier": "^8.5.0",
+		"eslint-plugin-import": "^2.26.0",
+		"eslint-plugin-prettier": "^4.2.1",
+		"eslint-plugin-simple-import-sort": "^7.0.0",
+		"prettier": "^2.7.1",
+		"tsup": "^6.2.3",
+		"tsx": "^3.9.0",
+		"typescript": "^4.8.2"
+	},
+	"engines": {
+		"node": ">=14.16"
+	}
 }

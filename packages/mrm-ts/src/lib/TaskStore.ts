@@ -3,28 +3,21 @@ import glob from "glob";
 import inquirer from "inquirer";
 import kleur from "kleur";
 import * as mrmCore from "mrm-core";
-import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import path from "node:path";
 
+import type { CliArgs, MrmOptions, MrmTask, TaskRecords } from "../types/mrm";
 import {
-	getPackageName,
-	isDirSync,
-	mrmDebug,
 	MrmInvalidTask,
 	MrmPathNotExist,
 	MrmUndefinedOption,
 	MrmUnknownAlias,
 	MrmUnknownTask,
-	promiseFirst,
-	promiseSeries,
-	resolveDirectories,
-	resolveUsingNpx,
-	tryFile,
-} from "./lib";
-import type { CliArgs, MrmOptions, MrmTask, TaskRecords } from "./types/mrm";
-
-// const require = createRequire(import.meta.url);
+} from "./errors";
+import { resolveUsingNpx } from "./npxResolver";
+import { promiseFirst, promiseSeries } from "./promises";
+import { resolveDirectories } from "./resolveDirectories";
+import { getPackageName, isDirSync, mrmDebug, tryFile } from "./utils";
 
 export class TaskStore {
 	preset = "default";
@@ -130,7 +123,6 @@ export class TaskStore {
 			this._debug("entering: %s", kleur.yellow(dir));
 
 			const tasks = glob.sync(`${dir}/*/index.js`);
-			console.error(tasks);
 
 			this._debug("\\ task count: %s", kleur.yellow(tasks.length));
 
